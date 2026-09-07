@@ -585,6 +585,7 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none}
     <div class="header">
       <div class="header-title" id="page-title">Dashboard</div>
       <div class="header-actions">
+      <span id="sync-status" style="font-size:11px;font-weight:600;color:var(--text-3);white-space:nowrap">☁️ Carregando...</span>
         <span style="font-size:11px;color:var(--text-3)" id="hdate"></span>
         <button class="btn-export" onclick="exportBackup()" title="Exportar todos os dados como backup JSON" style="font-size:11px;padding:5px 10px">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -876,7 +877,7 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none}
       </select>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Empresa</th><th>Responsável</th><th>Gestor</th><th>Fase</th><th class="admin-only">Valor/mês</th><th>Status</th><th>Saúde</th><th>Churn</th><th>Contrato</th><th></th></tr></thead>
+      <thead><tr><th>Empresa</th><th>Responsável</th><th>Gestor</th><th>Fase</th><th class="admin-only">Valor/mês</th><th>Status</th><th>Saúde</th><th>Churn</th><th style="white-space:nowrap">Conosco</th><th style="white-space:nowrap">Contrato</th><th></th></tr></thead>
       <tbody id="clients-tbody"></tbody>
     </table></div>
   </div>
@@ -2236,8 +2237,67 @@ const DATA_VERSION = '2025-05-v2'; // altere para forçar reset
 // Storage com fallback para protocolo file:// (localStorage bloqueado em alguns navegadores)
 const _mem={};
 const _ls=(()=>{try{localStorage.setItem('__test','1');localStorage.removeItem('__test');return localStorage}catch(e){return null}})();
+
+// ══════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════════════════
+const SUPA_URL='https://ghscoaknijiqxirokzyn.supabase.co';
+const SUPA_KEY='sb_publishable_z3aeM_gKVj1whsRnunQ5oQ_--ivuOq1';
+
+let _supaOnline=false;
+let _supaReady=false;
+let _savePending=false;
+
+async function supaGet(key){
+  try{
+    const r=await fetch(`${SUPA_URL}/rest/v1/im_store?key=eq.${key}&select=value`,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'}
+    });
+    if(!r.ok)return null;
+    const data=await r.json();
+    return data.length>0?data[0].value:null;
+  }catch{return null}
+}
+
+async function supaSet(key,value){
+  try{
+    const r=await fetch(`${SUPA_URL}/rest/v1/im_store`,{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({key,value,updated_at:new Date().toISOString()})
+    });
+    return r.ok;
+  }catch{return false}
+}
+
+async function supaLoadAll(){
+  try{
+    const r=await fetch(`${SUPA_URL}/rest/v1/im_store?select=key,value`,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}
+    });
+    if(!r.ok)return null;
+    const rows=await r.json();
+    const map={};
+    rows.forEach(row=>{map[row.key]=row.value});
+    return map;
+  }catch{return null}
+}
+
+async function supaSaveAll(data){
+  try{
+    const rows=Object.entries(data).map(([key,value])=>({key,value,updated_at:new Date().toISOString()}));
+    const r=await fetch(`${SUPA_URL}/rest/v1/im_store`,{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify(rows)
+    });
+    return r.ok;
+  }catch{return false}
+}
+
+// Local storage fallback
 const S = {
-  load:(k,d)=>{try{const src=_ls||_mem;const v=_ls?JSON.parse(_ls.getItem('im_'+k)):_mem['im_'+k];return(v&&v.length!==undefined?v.length>0:v!=null)?v:d}catch{return d}},
+  load:(k,d)=>{try{const v=_ls?JSON.parse(_ls.getItem('im_'+k)):_mem['im_'+k];return(v&&v.length!==undefined?v.length>0:v!=null)?v:d}catch{return d}},
   save:(k,v)=>{try{if(_ls)_ls.setItem('im_'+k,JSON.stringify(v));else _mem['im_'+k]=v}catch{_mem['im_'+k]=v}},
   clear:()=>{if(_ls)Object.keys(_ls).filter(k=>k.startsWith('im_')).forEach(k=>_ls.removeItem(k));else Object.keys(_mem).forEach(k=>delete _mem[k])}
 };
@@ -2376,7 +2436,110 @@ function showInlineModal(title,bodyHtml,saveFn,maxW){
   else document.getElementById('inline-modal-box').style.maxWidth='';
   openModal('inline-modal');
 }
-function saveAll(){S.save('clients',clients);S.save('revenues',revenues);S.save('vendasPontuais',vendasPontuais);S.save('expenses',expenses);S.save('goals',goals);S.save('meetings',meetings);S.save('monthlyHistory',monthlyHistory);S.save('settings',settings);S.save('movements',movements);S.save('systemUsers',systemUsers);S.save('leads',leads)}
+function _getDataMap(){
+  return{clients,revenues,vendasPontuais,expenses,goals,meetings,monthlyHistory,settings,movements,systemUsers,leads};
+}
+function _applyDataMap(map){
+  if(map.clients)clients=map.clients;
+  if(map.revenues)revenues=map.revenues;
+  if(map.vendasPontuais)vendasPontuais=map.vendasPontuais;
+  if(map.expenses)expenses=map.expenses;
+  if(map.goals)goals=map.goals;
+  if(map.meetings)meetings=map.meetings;
+  if(map.monthlyHistory)monthlyHistory=map.monthlyHistory;
+  if(map.settings)settings=map.settings;
+  if(map.movements)movements=map.movements;
+  if(map.systemUsers&&map.systemUsers.length)systemUsers=map.systemUsers;
+  if(map.leads)leads=map.leads;
+}
+
+// Debounced save to Supabase (avoids hammering the API)
+let _saveTimer=null;
+function saveAll(){
+  // Always save to localStorage immediately (instant, offline-safe)
+  const map=_getDataMap();
+  Object.entries(map).forEach(([k,v])=>S.save(k,v));
+  // Debounce Supabase save by 800ms
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{
+    const ok=await supaSaveAll(map);
+    if(ok){
+      showSyncStatus('saved');
+    } else {
+      showSyncStatus('offline');
+    }
+  },800);
+}
+
+function showSyncStatus(state){
+  let el=document.getElementById('sync-status');
+  if(!el)return;
+  if(state==='saved'){
+    el.innerHTML='☁️ Salvo';
+    el.style.color='#059669';
+    setTimeout(()=>{el.innerHTML='☁️ Sincronizado';},1500);
+  } else if(state==='syncing'){
+    el.innerHTML='⏳ Salvando...';
+    el.style.color='var(--text-3)';
+  } else if(state==='offline'){
+    el.innerHTML='📴 Offline (local)';
+    el.style.color='#d97706';
+  }
+}
+
+// ─── SEED DATA (backup importado) ───────────────────────
+const SEED_DATA={"clients":[{"id":"jz5rj95","company_name":"Carneiros Ar","contact_name":"Everaldo","whatsapp":"","email":"","niche":"Climatização","city":"São Paulo","start_date":"2025-04-10","monthly_value":1500,"due_day":15,"contract_months":0,"ad_budget":3000,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su1","manager":"Jonathan","manager_name":"Jonathan","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"umf7vjz","company_name":"M Serviços","contact_name":"Vinicius","whatsapp":"","email":"","niche":"Instalador de ar condicionado","city":"São Paulo","start_date":"2025-10-31","monthly_value":2000,"due_day":10,"contract_months":0,"ad_budget":1200,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager":"Vitor Hugo","manager_name":"Vitor Hugo","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[{"mes":"Set/2026","investimento":"20000","leads":"122","cpl":"23","vendas":"12","retorno":"122233","obs":""}],"cd_semanal":[],"cd_identificacao":{},"health_score":100,"cd_diario":{"google":[{"data":"2026-09-02","feito":"dfdf","porque":"fdfd","resultado":"fdfd","status":"feito","created_at":"2026-09-02T12:43:07.302Z"}],"meta":[]},"cd_criativos":[]},{"id":"n8bc0xw","company_name":"Dentalis Vet","contact_name":"Dr Gabriel","whatsapp":"","email":"","niche":"Dentista Veterinário","city":"São Paulo","start_date":"2026-04-06","monthly_value":2000,"due_day":13,"contract_months":6,"ad_budget":3000,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{"site":"","instagram":"","gmn":"","meta":"","gads":"","diario":"","planilha":"","relatorio":"","lp":"","drive":"","e1l":"","e1u":"","e2l":"","e2u":""},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[{"texto":"Apresentar crm para Gabriel","prioridade":"alta","data":"2026-09-03","autor":"Letícia","done":false,"created_at":"2026-09-02T12:45:39.222Z"}],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"cvu6u7b","company_name":"Fiory Estações","contact_name":"Sarah","whatsapp":"","email":"","niche":"Carrinho Gourmet Eventos","city":"Rio de Janeiro","start_date":"2025-11-11","monthly_value":1600,"due_day":26,"contract_months":0,"ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"Renovação automática do contrato","manager_id":"su1","manager":"Jonathan","manager_name":"Jonathan","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"8gpdbqm","company_name":"Auto Center Cosmorama","contact_name":"Uelton","whatsapp":"","email":"","niche":"Oficina Mecanica","city":"São Paulo","start_date":"2026-02-06","monthly_value":1800,"due_day":6,"contract_months":12,"ad_budget":2000,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"6atx6ir","company_name":"Estrela dos Sabores","contact_name":"Cesar","whatsapp":"","email":"","niche":"Salgados Evento","city":"São Paulo","start_date":"2026-02-15","monthly_value":600,"due_day":17,"contract_months":0,"ad_budget":1000,"payment_method":"","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"medio","notes":"","manager_id":"su1","manager":"Jonathan","manager_name":"Jonathan","project_phase":"escala","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":90},{"id":"11uwz2m","company_name":"Project Ar Condicionado","contact_name":"Vinicius","whatsapp":"","email":"","niche":"Clímitização","city":"São Paulo","start_date":"2026-03-06","monthly_value":2000,"due_day":5,"contract_months":3,"ad_budget":2000,"payment_method":"","status":"ativo","relationship":"atencao","results":"otimo","churn_risk":"medio","notes":"Pagamento atrasado mensalidade 2000 e crm 997","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"pausado","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":75},{"id":"wlzg81u","company_name":"Brasil Vidros","contact_name":"Dielson","whatsapp":"","email":"","niche":"Vidraçaria","city":"Anápolis","start_date":"2026-03-19","monthly_value":1200,"due_day":16,"contract_months":6,"ad_budget":0,"payment_method":"","status":"ativo","relationship":"atencao","results":"atencao","churn_risk":"alto","notes":"","manager_id":"su2","manager":"Vitor Hugo","manager_name":"Vitor Hugo","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":45},{"id":"0iu2hhu","company_name":"Clínica Veterinária Frederico","contact_name":"Frederico Luvizutto","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Birigui - São Paulo","start_date":"2026-06-29","monthly_value":1500,"due_day":5,"contract_months":3,"ad_budget":1200,"payment_method":"Cartão","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"815x337","company_name":"Malta Fit","contact_name":"Matheus","whatsapp":"","email":"","niche":"Academia","city":"Petrolina de Goiás","start_date":"2026-05-01","monthly_value":2000,"due_day":7,"contract_months":0,"ad_budget":0,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su2","manager":"Vitor Hugo","manager_name":"Vitor Hugo","project_phase":"criacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"wpblv9n","company_name":"Bicho do Mato","contact_name":"Marcelo","whatsapp":"","email":"","niche":"Clínica Veterinária Exóticos","city":"Fortaleza","start_date":"2026-04-17","monthly_value":1500,"due_day":29,"contract_months":8,"ad_budget":1000,"payment_method":"Cartão","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su2","manager":"Vitor Hugo","manager_name":"Vitor Hugo","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"ni6tbt3","company_name":"Igor Tatuador","contact_name":"Igor","whatsapp":"","email":"","niche":"Tatuador","city":"Santo André","start_date":"2026-04-30","monthly_value":1500,"due_day":30,"contract_months":6,"ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"giac4yh","company_name":"Thiago Endoscopia","contact_name":"Thiago Rocha","whatsapp":"","email":"","niche":"Veterinário Endoscopista","city":"","start_date":"2026-09-01","monthly_value":2000,"due_day":14,"contract_months":0,"ad_budget":0,"payment_method":"PIX","status":"ativo","relationship":"atencao","results":"bom","churn_risk":"medio","notes":"","manager_id":"su2","manager":"Vitor Hugo","manager_name":"Vitor Hugo","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":75},{"id":"mwexuyg","company_name":"Clínica Veterinária Hippiatra","contact_name":"Marlen Viana","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"","start_date":"2026-05-15","monthly_value":2000,"due_day":14,"contract_months":6,"ad_budget":1200,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"bzh6z5w","company_name":"Clínica Veterinária Santa Rita","contact_name":"Dr Luis e Valeria","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Goiânia","start_date":"2026-06-10","monthly_value":2500,"due_day":10,"contract_months":6,"ad_budget":0,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"m5t0x8b","company_name":"Loyal Dog","contact_name":"Guilherme","whatsapp":"","email":"","niche":"Petshop e Clínica Veterinária","city":"São Paulo","start_date":"2026-06-09","monthly_value":2000,"due_day":9,"contract_months":6,"ad_budget":0,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"idnkhii","company_name":"Eclipse Telas","contact_name":"","whatsapp":"","email":"","niche":"Telas de proteção","city":"São Paulo","start_date":"2026-06-11","monthly_value":1500,"due_day":11,"contract_months":3,"ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"atencao","results":"bom","churn_risk":"medio","notes":"","manager_id":"su1","manager":"Jonathan","manager_name":"Jonathan","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":75},{"id":"6y284sf","company_name":"Sales Tattoo","contact_name":"Sales","whatsapp":"","email":"","niche":"Tatuador","city":"","start_date":"2026-06-29","monthly_value":2000,"due_day":26,"contract_months":3,"ad_budget":0,"payment_method":"","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"2kpgk3g","company_name":"BioVet Clínica Veterinária","contact_name":"Juan Esteves","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Caraguatatuba - Sp","start_date":"2027-07-08","monthly_value":2000,"due_day":20,"contract_months":6,"contract_status":"","ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"xnumery","company_name":"Clínica Veterinária Central Vet","contact_name":"Matheus","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Guarulhos - Sp","start_date":"2026-07-24","monthly_value":2000,"due_day":24,"contract_months":6,"ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"atencao","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":85},{"id":"mdscpaa","company_name":"Top Clima DF","contact_name":"Amanda","whatsapp":"","email":"","niche":"Empresa de Climatização","city":"Brasília - DF","start_date":"2026-05-15","monthly_value":2000,"due_day":15,"contract_months":4,"ad_budget":0,"payment_method":"","status":"ativo","relationship":"otimo","results":"atencao","churn_risk":"medio","notes":"","manager_id":"su1","manager":"Jonathan","manager_name":"Jonathan","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":75},{"id":"mpb79hw","company_name":"Dentista Vet Mariana Neves","contact_name":"Mariana Neves","whatsapp":"","email":"","niche":"Dentista Veterinária","city":"São Paulo","start_date":"2026-08-06","monthly_value":1300,"due_day":6,"contract_months":3,"ad_budget":1000,"payment_method":"","status":"ativo","relationship":"atencao","results":"atencao","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":70},{"id":"pobahfw","company_name":"Toca Hospedagem","contact_name":"Amanda e Caroline","whatsapp":"","email":"","niche":"Creche e Hotel Cachorro","city":"Goiânia","start_date":"2026-08-10","monthly_value":2000,"due_day":10,"contract_months":3,"ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"atencao","results":"atencao","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":70},{"id":"7t5wmia","company_name":"Vitor Limpeza Estofados","contact_name":"Vitor","whatsapp":"","email":"","niche":"Limpeza Estofados","city":"São Paulo","start_date":"2026-08-11","monthly_value":1500,"due_day":11,"contract_months":6,"ad_budget":0,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"otimizacao","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"k3jbd4q","company_name":"Clínica Vet Center Foz do Iguaçu","contact_name":"Johany","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Foz do Iguaçu","start_date":"2026-08-18","monthly_value":1700,"due_day":5,"contract_months":6,"ad_budget":1200,"payment_method":"Cartão","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"lancamento","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"0cl132b","company_name":"Clínica Veterinária Simon Pet","contact_name":"Daniella Simon","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Goiânia ","start_date":"2026-08-31","monthly_value":1997,"due_day":31,"contract_months":3,"ad_budget":1200,"payment_method":"PIX","status":"ativo","relationship":"bom","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su3","manager":"Gabriele","manager_name":"Gabriele","project_phase":"contrato","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100},{"id":"ot9g7yh","company_name":"Clínica Veterinária Vitau Pet","contact_name":"Adriane","whatsapp":"","email":"","niche":"Clínica Veterinária","city":"Primavera do Leste - Mato Grosso","start_date":"2026-09-03","monthly_value":2000,"due_day":5,"contract_months":6,"ad_budget":1500,"payment_method":"PIX","status":"ativo","relationship":"otimo","results":"otimo","churn_risk":"baixo","notes":"","manager_id":"su4","manager":"Letícia","manager_name":"Letícia","project_phase":"contrato","cd_acessos":{},"cd_escopo":null,"cd_estrategia":{},"cd_onboarding":{},"cd_resultados":[],"cd_semanal":[],"cd_identificacao":{},"cd_resumo":null,"cd_pendencias_head":[],"cd_diario":{"google":[],"meta":[]},"cd_criativos":[],"health_score":100}],"revenues":[{"id":"vfiwid0","client_id":"qy2b4ur","client_name":"Everaldo","amount":1222,"paid_at":"2026-08-13","reference_month":"2026-08","status":"pago","payment_method":"","notes":""},{"id":"cxq8iw1","client_id":"ot9g7yh","client_name":"Clínica Veterinária Vitau Pet","amount":2000,"paid_at":"2026-09-03","reference_month":"2026-09","status":"pago","payment_method":"PIX","notes":""},{"id":"z9eyfi3","client_id":"wlzg81u","client_name":"Brasil Vidros","tipo":"pendente","desc":"","amount":1200,"paid_at":"2026-09-02","reference_month":"2026-09","status":"pago","payment_method":"PIX","notes":"Pagamento atrasado do mês de Agosto"},{"id":"aei09yb","client_id":"8gpdbqm","client_name":"Auto Center Cosmorama","tipo":"mensalidade","desc":"","amount":1800,"paid_at":"2026-09-04","reference_month":"2026-09","status":"pago","payment_method":"PIX","notes":""}],"vendasPontuais":[{"id":"t0dlcw5","servico":"Landing Page","tipo":"landing_page","valor":29,"cliente":"","status":"pendente","parcelas":1,"parcela_atual":1,"valor_parcela":29,"data":"2026-08-28","resp":"","obs":""}],"expenses":[{"id":"afm1l2a","description":"Gestora","amount":2000,"date":"2026-09-05","category":"colaboradores","type":"fixa","notes":""}],"goals":[{"id":"8czg2qq","title":"100k","type":"faturamento","target_value":100000,"current_value":43000,"month":9,"year":2026,"deadline":"2027-01-01","status":"ativo"}],"meetings":[{"id":"491mr7h","company":"Thiago","date":"2026-08-31","responsible":"Vítor","sdr":"","origem":"","niche":"","valor":0,"closed":"andamento","reason":"2000","notes":"2000"}],"monthlyHistory":[{"month":"2025-04","revenue":3600,"expenses":600,"clients":3,"new_clients":0,"churns":0}],"settings":{"monthlyGoal":50000,"annualGoal":100000,"annualYear":2025},"movements":[],"systemUsers":[{"id":"su1","name":"Jonathan","email":"jonathan@impactmidia.com","password":"impact2025","role":"Sócio","level":"admin","color":"#0161ff"},{"id":"su2","name":"Vitor Hugo","email":"vitorhugo@impactmidia.com","password":"vitor123","role":"Sócio","level":"admin","color":"#7c3aed"},{"id":"su4","name":"Letícia","email":"leticia@impactmidia.com","password":"leticia123","role":"Gestora","level":"gestor","color":"#db2777","pautas":[]},{"id":"su5","name":"SDR","email":"sdr@impactmidia.com","password":"sdr2025","role":"SDR","level":"sdr","show_org":false,"color":"#f59e0b"},{"id":"su0","name":"Admin","email":"admin@impactmidia.com","password":"admin123","role":"Administrador","level":"admin","color":"#0161ff"},{"id":"su3","name":"Gabriele","email":"gabriele@impactmidia.com","password":"gabi3214","role":"Gestor","level":"gestor","show_org":true,"color":"#16a34a"}],"leads":[]};
+
+async function seedSupabase(){
+  // Only seed if Supabase is empty
+  const existing=await supaLoadAll();
+  if(existing&&Object.keys(existing).length>0&&existing.clients&&existing.clients.length>0){
+    console.log('Supabase já tem dados — seed ignorado');
+    return false;
+  }
+  console.log('Supabase vazio — fazendo seed com backup...');
+  const ok=await supaSaveAll(SEED_DATA);
+  if(ok)console.log('✅ Seed concluído —',SEED_DATA.clients?.length,'clientes');
+  else console.log('❌ Seed falhou');
+  return ok;
+}
+
+async function initSupabase(){
+  const statusEl=document.getElementById('sync-status');
+  if(statusEl){statusEl.innerHTML='⏳ Conectando...';statusEl.style.color='var(--text-3)'}
+  const map=await supaLoadAll();
+  if(map&&Object.keys(map).length>0&&map.clients&&map.clients.length>0){
+    _supaOnline=true;
+    _applyDataMap(map);
+    // Also sync to localStorage as cache
+    Object.entries(map).forEach(([k,v])=>S.save(k,v));
+    if(statusEl){statusEl.innerHTML='☁️ Sincronizado';statusEl.style.color='#059669'}
+    console.log('✅ Supabase conectado —',map.clients?.length,'clientes carregados');
+  } else {
+    // Supabase vazio — tentar seed com backup
+    _supaOnline=true;
+    if(statusEl){statusEl.innerHTML='⏳ Importando dados...';statusEl.style.color='var(--text-3)'}
+    const seeded=await seedSupabase();
+    if(seeded){
+      _applyDataMap(SEED_DATA);
+      Object.entries(SEED_DATA).forEach(([k,v])=>S.save(k,v));
+      if(statusEl){statusEl.innerHTML='☁️ Dados importados!';statusEl.style.color='#059669'}
+      setTimeout(()=>{statusEl.innerHTML='☁️ Sincronizado';statusEl.style.color='#059669'},2000);
+    } else {
+      _supaOnline=false;
+      if(statusEl){statusEl.innerHTML='📴 Offline (local)';statusEl.style.color='#d97706'}
+    }
+    console.log('Seed result:',seeded);
+  }
+  _supaReady=true;
+  // Re-render current page with fresh data
+  const activePage=document.querySelector('.page.active');
+  if(activePage){
+    const p=activePage.id.replace('page-','');
+    const titles={dashboard:'dashboard',clientes:'clientes',financeiro:'financeiro',cobrancas:'cobrancas',reunioes:'reunioes',metas:'metas',crescimento:'crescimento',usuarios:'usuarios',configuracoes:'configuracoes','gestor-dashboard':'gestor-dashboard',crm:'crm'};
+    if(titles[p])nav(p,document.getElementById('nav-'+p));
+  }
+}
 
 function calcHealth(c){let s=100;if(c.relationship==='atencao')s-=15;if(c.relationship==='ruim')s-=30;if(c.results==='atencao')s-=15;if(c.results==='ruim')s-=30;if(c.churn_risk==='medio')s-=10;if(c.churn_risk==='alto')s-=25;if(c.status==='pausado')s-=10;if(c.status==='cancelado')s-=50;return Math.max(0,Math.min(100,s))}
 function healthColor(s){return s>=75?'#16a34a':s>=50?'#d97706':'#dc2626'}
@@ -2498,6 +2661,8 @@ function doLogin(){
     const app=document.getElementById('app');
     if(app){app.style.display='flex';app.classList.add('on','visible')}
     try{initApp()}catch(e){console.error('initApp:',e)}
+    // Load fresh data from Supabase
+    setTimeout(()=>initSupabase(),100);
   },350);
 }
 
@@ -3478,26 +3643,58 @@ function renderClients(){
   });
   const tb=document.getElementById('clients-tbody');
   if(!filtered.length){
-    tb.innerHTML=`<tr><td colspan="10"><div class="empty"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>Nenhum cliente encontrado</p><span>${isAdmin?'Ajuste o filtro ou cadastre um novo':'Nenhum cliente atribuído a você ainda'}</span></div></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="11"><div class="empty"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>Nenhum cliente encontrado</p><span>${isAdmin?'Ajuste o filtro ou cadastre um novo':'Nenhum cliente atribuído a você ainda'}</span></div></td></tr>`;
     return;
   }
 
   const today=new Date();today.setHours(0,0,0,0);
+
+  // Parse date string correctly ignoring timezone offset
+  const parseDate=(s)=>{
+    if(!s)return null;
+    const[y,m,d]=s.split('-').map(Number);
+    const dt=new Date(y,m-1,d);dt.setHours(0,0,0,0);return dt;
+  };
+  const daysDiff=(a,b)=>Math.round((a-b)/(1000*60*60*24));
+
+  const calcDaysWithUs=(c)=>{
+    const start=parseDate(c.start_date);if(!start)return null;
+    return daysDiff(today,start);
+  };
   const calcContractDays=(c)=>{
     if(!c.start_date||!c.contract_months)return null;
-    const end=new Date(c.start_date);
+    const start=parseDate(c.start_date);if(!start)return null;
+    const end=new Date(start);
     end.setMonth(end.getMonth()+Number(c.contract_months));
-    end.setHours(0,0,0,0);
-    return Math.round((end-today)/(1000*60*60*24));
+    return daysDiff(end,today);
   };
-  const contractBadge=(days,status)=>{
-    if(status==='vencido')return`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.08);padding:2px 8px;border-radius:8px">⚠️ Vencido</span>`;
-    if(status==='sem_contrato')return`<span style="font-size:11px;font-weight:700;color:#d97706;background:rgba(217,119,6,.08);padding:2px 8px;border-radius:8px">Sem contrato</span>`;
+
+  const daysWithUsBadge=(days)=>{
     if(days===null)return'<span class="td2" style="font-size:11px">—</span>';
-    if(days<0)return`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.08);padding:2px 8px;border-radius:8px">⚠️ Vencido ${Math.abs(days)}d</span>`;
-    if(days<=7)return`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.08);padding:2px 8px;border-radius:8px">⚠️ ${days}d</span>`;
-    if(days<=30)return`<span style="font-size:11px;font-weight:700;color:#d97706;background:rgba(217,119,6,.08);padding:2px 8px;border-radius:8px">⏰ ${days}d</span>`;
-    return`<span style="font-size:11px;font-weight:600;color:#059669;background:rgba(5,150,105,.08);padding:2px 8px;border-radius:8px">${days}d</span>`;
+    if(days<0)return'<span class="td2" style="font-size:11px">—</span>';
+    const years=Math.floor(days/365);
+    const months=Math.floor((days%365)/30);
+    let label='';
+    if(years>0)label=`${years}a ${months}m`;
+    else if(months>0)label=`${months}m ${days%30}d`;
+    else label=`${days}d`;
+    return`<div style="text-align:center">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">${label}</div>
+      <div style="font-size:10px;color:var(--text-3)">${days} dias</div>
+    </div>`;
+  };
+
+  const contractBadge=(days,status)=>{
+    if(status==='vencido')return`<div style="text-align:center"><span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.08);padding:3px 8px;border-radius:8px;display:inline-block">⚠️ Vencido</span></div>`;
+    if(status==='sem_contrato')return`<div style="text-align:center"><span style="font-size:11px;font-weight:700;color:#d97706;background:rgba(217,119,6,.08);padding:3px 8px;border-radius:8px;display:inline-block">📋 Sem contrato</span></div>`;
+    if(days===null)return'<span class="td2" style="font-size:11px">—</span>';
+    if(days<0)return`<div style="text-align:center"><span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.08);padding:3px 8px;border-radius:8px;display:inline-block">⚠️ Vencido há ${Math.abs(days)}d</span></div>`;
+    if(days<=7)return`<div style="text-align:center"><span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.08);padding:3px 8px;border-radius:8px;display:inline-block">⚠️ ${days}d restantes</span></div>`;
+    if(days<=30)return`<div style="text-align:center"><span style="font-size:11px;font-weight:700;color:#d97706;background:rgba(217,119,6,.08);padding:3px 8px;border-radius:8px;display:inline-block">⏰ ${days}d restantes</span></div>`;
+    return`<div style="text-align:center">
+      <div style="font-size:13px;font-weight:700;color:#059669">${days}d</div>
+      <div style="font-size:10px;color:var(--text-3)">restantes</div>
+    </div>`;
   };
 
   tb.innerHTML=filtered.map(c=>{
@@ -3505,6 +3702,7 @@ function renderClients(){
     const mc=managerColor(c.manager);
     const canEdit=isAdmin;
     const days=calcContractDays(c);
+    const daysUs=calcDaysWithUs(c);
     return`<tr>
       <td>
         <div class="tdb">${c.company_name}</div>
@@ -3524,12 +3722,8 @@ function renderClients(){
         </div>
       </td>
       <td>${churnBadge(c.churn_risk)}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          ${c.start_date?`<span style="font-size:11px;color:var(--text-3);font-weight:600;white-space:nowrap">${Math.floor((today-new Date(c.start_date))/(1000*60*60*24))}d</span><span style="color:var(--border);font-size:10px">|</span>`:''}
-          ${contractBadge(days,c.contract_status)}
-        </div>
-      </td>
+      <td style="text-align:center">${daysWithUsBadge(daysUs)}</td>
+      <td>${contractBadge(days,c.contract_status)}</td>
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm" onclick="openClientDetail('${c.id}')" title="Ver detalhe"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
@@ -6752,7 +6946,7 @@ function applyBackup(json){
     if(d.systemUsers&&d.systemUsers.length)systemUsers=d.systemUsers;
     saveAll();
     showToast('✅ Backup restaurado! Recarregando...',2000);
-    setTimeout(()=>location.reload(),2000);
+    setTimeout(()=>location.reload(),2200);
   }catch(e){showToast('❌ Erro: '+e.message,4000)}
 }
 function importBackup(input){
