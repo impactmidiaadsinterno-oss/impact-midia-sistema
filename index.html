@@ -877,7 +877,7 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none}
       </select>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Empresa</th><th>Responsável</th><th>Gestor</th><th>Fase</th><th class="admin-only">Valor/mês</th><th>Status</th><th>Saúde</th><th>Churn</th><th style="white-space:nowrap">Conosco</th><th style="white-space:nowrap">Contrato</th><th></th></tr></thead>
+      <thead><tr><th>Empresa</th><th>Responsável</th><th>Gestor</th><th>Fase</th><th class="admin-only">Valor/mês</th><th>Status</th><th>Saúde</th><th>Churn</th><th style="white-space:nowrap" class="admin-only">Conosco</th><th style="white-space:nowrap" class="admin-only">Contrato</th><th></th></tr></thead>
       <tbody id="clients-tbody"></tbody>
     </table></div>
   </div>
@@ -1210,6 +1210,12 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none}
       <div style="font-size:13px;font-weight:700;margin-bottom:16px">Detalhamento de despesas</div>
       <div id="cres-despesas-list" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto"></div>
     </div>
+  </div>
+
+  <!-- GRÁFICO RECEITA vs DESPESA -->
+  <div class="card cp" style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;margin-bottom:14px">📊 Receita × Despesas × Lucro por mês</div>
+    <div style="height:240px"><canvas id="cres-rev-exp-chart"></canvas></div>
   </div>
 
   <!-- HISTÓRICO TABLE -->
@@ -2601,13 +2607,11 @@ function getMonthsForPeriod(){
 }
 
 function getRevenueForMonth(month){
-  // Real revenues
-  const real=revenues.filter(r=>r.reference_month===month&&r.status==='pago').reduce((a,r)=>a+Number(r.amount),0);
-  // Historical
+  // Use real paid revenues if any exist for the month
+  const realRevs=revenues.filter(r=>r.reference_month===month&&r.status==='pago');
+  if(realRevs.length>0) return realRevs.reduce((a,r)=>a+Number(r.amount),0);
+  // Otherwise fall back to monthly history
   const h=monthlyHistory.find(x=>x.month===month);
-  // If real data exists, use it; otherwise use history
-  const hasReal=revenues.some(r=>r.reference_month===month);
-  if(hasReal) return real;
   return h?h.revenue:0;
 }
 function getExpensesForMonth(month){
@@ -3761,8 +3765,8 @@ function renderClients(){
         </div>
       </td>
       <td>${churnBadge(c.churn_risk)}</td>
-      <td style="text-align:center">${daysWithUsBadge(daysUs)}</td>
-      <td>${contractBadge(days,c.contract_status)}</td>
+      ${isAdmin?`<td style="text-align:center">${daysWithUsBadge(daysUs)}</td>`:''}
+      ${isAdmin?`<td>${contractBadge(days,c.contract_status)}</td>`:''}
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm" onclick="openClientDetail('${c.id}')" title="Ver detalhe"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
@@ -4711,6 +4715,20 @@ function renderCrescimento(){
   mkChart('chart-margem',{type:'line',data:{labels,datasets:[{data:margemData,borderColor:'#7c3aed',backgroundColor:'rgba(124,58,237,.08)',tension:.4,fill:true,pointRadius:4,pointBackgroundColor:'#7c3aed',label:'Margem %'}]},options:{...baseOpts(v=>v+'%'),plugins:{legend:{display:false}}}});
   mkChart('chart-clientes',{type:'line',data:{labels,datasets:[{data:clientsData,borderColor:'#0891b2',backgroundColor:'rgba(8,145,178,.08)',tension:.4,fill:true,pointRadius:4,pointBackgroundColor:'#0891b2',label:'Clientes'}]},options:baseOpts()});
   mkChart('chart-churn',{type:'bar',data:{labels,datasets:[{label:'Novos',data:novosData,backgroundColor:'rgba(1,97,255,.8)',borderRadius:4,borderSkipped:false},{label:'Churns',data:churnsData,backgroundColor:'rgba(220,38,38,.7)',borderRadius:4,borderSkipped:false}]},options:baseOpts(null,true)});
+
+  // ── RECEITA vs DESPESA chart ──
+  mkChart('cres-rev-exp-chart',{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Receita',data:fatData,backgroundColor:'rgba(1,97,255,.75)',borderRadius:4,borderSkipped:false},
+        {label:'Despesas',data:expData,backgroundColor:'rgba(220,38,38,.6)',borderRadius:4,borderSkipped:false},
+        {label:'Lucro',data:lucroData,backgroundColor:lucroData.map(v=>v>=0?'rgba(5,150,105,.65)':'rgba(220,38,38,.35)'),borderRadius:4,borderSkipped:false},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{family:'Sora',size:11},color:cd.text,boxWidth:10,padding:12}}},scales:{x:{grid:{color:cd.grid},ticks:{color:cd.text,font:{size:10}}},y:{grid:{color:cd.grid},ticks:{color:cd.text,font:{size:10},callback:v=>'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v.toFixed(0))}}}}
+  });
 
   // History table
   const tbody=document.getElementById('cres-hist-tbody');
