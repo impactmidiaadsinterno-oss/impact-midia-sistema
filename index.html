@@ -346,12 +346,15 @@ textarea.inp{resize:vertical;min-height:72px}
 .future-ring{border:2px solid var(--border-md)}
 
 /* ACCESS CONTROL */
-.admin-only{display:none}
+.admin-only{display:none!important}
 .sdr-only{display:none}
-body.is-admin .admin-only{display:flex}
-body.is-admin div.admin-only{display:block}
+body.is-admin .admin-only{display:table-cell!important}
+body.is-admin th.admin-only{display:table-cell!important}
+body.is-admin td.admin-only{display:table-cell!important}
+body.is-admin div.admin-only{display:block!important}
+body.is-admin span.admin-only{display:inline!important}
 body.is-sdr .sdr-only{display:flex}
-body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none}
+body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
 
 /* CLIENT DETAIL TABS */
 .client-tabs-bar{display:flex;gap:2px;background:var(--surface-2);border-radius:var(--radius-md);padding:3px;margin-bottom:20px;overflow-x:auto;flex-wrap:nowrap}
@@ -2428,6 +2431,12 @@ const clientBelongsTo=(c,u)=>!!(u&&(c.manager_id===u.id||c.manager===u.name||c.m
 const monthName=str=>{if(!str)return'';const[y,m]=str.split('-');const n=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];return(n[parseInt(m)-1]||'')+' '+y};
 const fullMonthName=str=>{if(!str)return'';const[y,m]=str.split('-');const n=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];return(n[parseInt(m)-1]||'')+' de '+y};
 function nowMonth(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+function changeMonth(dir){
+  const[y,m]=currentFinMonth.split('-').map(Number);
+  const d=new Date(y,m-1+dir,1);
+  currentFinMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  renderFinanceiro();
+}
 function showToast(msg){const t=document.createElement('div');t.className='ti';t.textContent=msg;document.getElementById('toast').appendChild(t);setTimeout(()=>t.remove(),3000)}
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -2607,12 +2616,13 @@ function getMonthsForPeriod(){
 }
 
 function getRevenueForMonth(month){
-  // Use real paid revenues if any exist for the month
-  const realRevs=revenues.filter(r=>r.reference_month===month&&r.status==='pago');
-  if(realRevs.length>0) return realRevs.reduce((a,r)=>a+Number(r.amount),0);
-  // Otherwise fall back to monthly history
+  // Sum all paid revenues for the month from actual revenue entries
+  const paidRevs=revenues.filter(r=>r.reference_month===month&&r.status==='pago');
+  const paidTotal=paidRevs.reduce((a,r)=>a+Number(r.amount||0),0);
+  if(paidTotal>0) return paidTotal;
+  // No paid entries — check manual history
   const h=monthlyHistory.find(x=>x.month===month);
-  return h?h.revenue:0;
+  return h?Number(h.revenue||0):0;
 }
 function getExpensesForMonth(month){
   const real=expenses.filter(e=>{const[y,m]=(e.date||'').split('-');return`${y}-${m}`===month}).reduce((a,e)=>a+Number(e.amount),0);
@@ -3765,8 +3775,8 @@ function renderClients(){
         </div>
       </td>
       <td>${churnBadge(c.churn_risk)}</td>
-      ${isAdmin?`<td style="text-align:center">${daysWithUsBadge(daysUs)}</td>`:''}
-      ${isAdmin?`<td>${contractBadge(days,c.contract_status)}</td>`:''}
+      ${isAdmin?`<td class="admin-only" style="text-align:center">${daysWithUsBadge(daysUs)}</td>`:''}
+      ${isAdmin?`<td class="admin-only">${contractBadge(days,c.contract_status)}</td>`:''}
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-secondary btn-sm" onclick="openClientDetail('${c.id}')" title="Ver detalhe"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
