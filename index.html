@@ -7029,6 +7029,11 @@ function openUserModal(id){
   document.getElementById('um-title').textContent=u?'Editar usuário':'Novo usuário';
   const set=(eid,val)=>{const el=document.getElementById(eid);if(el)el.value=val||''};
   set('uf-name',u?.name);set('uf-email',u?.email);set('uf-pass','');set('uf-role',u?.role);
+  const passEl=document.getElementById('uf-pass');
+  if(passEl){
+    passEl.placeholder=u?'Deixe em branco para manter a atual':'Mínimo 6 caracteres';
+    passEl.value='';
+  }
   document.getElementById('uf-level').value=u?.level||'gestor';
   const org=document.getElementById('uf-show-org');
   if(org)org.checked=u?(u.show_org!==false):true; // default true
@@ -7037,24 +7042,35 @@ function openUserModal(id){
 function saveUser(){
   const name=document.getElementById('uf-name').value.trim();
   const email=document.getElementById('uf-email').value.trim().toLowerCase();
-  const pass=document.getElementById('uf-pass').value;
+  const pass=document.getElementById('uf-pass').value.trim();
   if(!name||!email){showToast('Nome e e-mail são obrigatórios');return}
   if(!editUserId&&!pass){showToast('Senha obrigatória para novos usuários');return}
   if(pass&&pass.length<6){showToast('Senha mínima: 6 caracteres');return}
   const dup=systemUsers.find(u=>u.email.toLowerCase()===email&&u.id!==editUserId);
   if(dup){showToast('Este e-mail já está em uso');return}
   const COLORS=['#0161ff','#7c3aed','#16a34a','#db2777','#d97706','#0891b2','#dc2626'];
+  const existing=editUserId?systemUsers.find(u=>u.id===editUserId):null;
+  const finalPassword=pass?pass:(existing?.password||'');
+  if(!finalPassword){showToast('Senha obrigatória');return}
   const data={
     id:editUserId||uid(),name,email,
-    password:pass||(editUserId?systemUsers.find(u=>u.id===editUserId)?.password:''),
+    password:finalPassword,
     role:document.getElementById('uf-role').value,
     level:document.getElementById('uf-level').value,
     show_org:document.getElementById('uf-show-org')?.checked!==false,
-    color:editUserId?systemUsers.find(u=>u.id===editUserId)?.color:COLORS[systemUsers.length%COLORS.length],
+    color:existing?.color||COLORS[systemUsers.length%COLORS.length],
+    pautas:existing?.pautas||[],
   };
   if(editUserId){const i=systemUsers.findIndex(u=>u.id===editUserId);systemUsers[i]=data}
   else systemUsers.push(data);
-  saveAll();closeModal('user-modal');renderUsers();showToast(editUserId?'Usuário atualizado':'Usuário criado');
+  saveAll();
+  // Also update session if editing current user
+  if(editUserId&&currentSystemUser?.id===editUserId){
+    currentSystemUser=data;
+    saveSession(data.id);
+  }
+  closeModal('user-modal');renderUsers();
+  showToast(editUserId?`✅ Usuário atualizado${pass?' — nova senha salva':''}`:' Usuário criado');
 }
 function delUser(id){
   deleteCallback=()=>{systemUsers=systemUsers.filter(u=>u.id!==id);saveAll();renderUsers();closeModal('confirm-modal');showToast('Usuário excluído')};
