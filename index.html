@@ -2616,22 +2616,21 @@ function getMonthsForPeriod(){
 }
 
 function getRevenueForMonth(month){
-  // Sum all paid revenues for the month from actual revenue entries
-  const paidRevs=revenues.filter(r=>r.reference_month===month&&r.status==='pago');
-  const paidTotal=paidRevs.reduce((a,r)=>a+Number(r.amount||0),0);
-  if(paidTotal>0) return paidTotal;
-  // No paid entries — check manual history
+  // If manual history exists and has a value, it takes priority
+  // (allows correcting months with partial real data)
   const h=monthlyHistory.find(x=>x.month===month);
-  return h?Number(h.revenue||0):0;
+  if(h&&Number(h.revenue||0)>0) return Number(h.revenue);
+  // No history — use real paid revenues
+  const paidTotal=revenues.filter(r=>r.reference_month===month&&r.status==='pago').reduce((a,r)=>a+Number(r.amount||0),0);
+  return paidTotal;
 }
 function getExpensesForMonth(month){
-  // Use real expense entries if any exist
-  const realExps=expenses.filter(e=>{const[y,m]=(e.date||'').split('-');return`${y}-${m}`===month});
-  const realTotal=realExps.reduce((a,e)=>a+Number(e.amount||0),0);
-  if(realExps.length>0) return realTotal;
-  // No real expenses — use manual history
+  // If manual history exists and has a value, it takes priority
   const h=monthlyHistory.find(x=>x.month===month);
-  return h?Number(h.expenses||0):0;
+  if(h&&Number(h.expenses||0)>0) return Number(h.expenses);
+  // No history — use real expenses
+  const realTotal=expenses.filter(e=>{const[y,m]=(e.date||'').split('-');return`${y}-${m}`===month}).reduce((a,e)=>a+Number(e.amount||0),0);
+  return realTotal;
 }
 function getClientsForMonth(month){
   const h=monthlyHistory.find(x=>x.month===month);
@@ -4745,22 +4744,25 @@ function renderCrescimento(){
   const td='padding:10px 16px;border-bottom:1px solid var(--border);';
   tbody.innerHTML=[...allMonths].reverse().map((m,ri)=>{
     const i=allMonths.length-1-ri;
-    // For each month: real data takes priority over history
+    // History-first: manual history takes priority, real data as fallback
+    const h=monthlyHistory.find(x=>x.month===m);
     const realRev=revenues.filter(r=>r.reference_month===m&&r.status==='pago').reduce((a,r)=>a+Number(r.amount||0),0);
     const realExp=expenses.filter(e=>{const[y,mo]=(e.date||'').split('-');return`${y}-${mo}`===m}).reduce((a,e)=>a+Number(e.amount||0),0);
-    const h=monthlyHistory.find(x=>x.month===m);
-    const fat=realRev>0?realRev:(h?Number(h.revenue||0):0);
-    const exp=realExp>0?realExp:(h?Number(h.expenses||0):0);
+    const histRev=h?Number(h.revenue||0):0;
+    const histExp=h?Number(h.expenses||0):0;
+    const fat=histRev>0?histRev:realRev;
+    const exp=histExp>0?histExp:realExp;
     const luc=fat-exp;
     const mar=fat>0?Math.round(luc/fat*100):0;
     const nc=h?h.new_clients:0;
     const ch=h?h.churns:0;
     const cl=h?h.clients:clients.filter(c=>c.status==='ativo').length;
-    const isReal=realRev>0||realExp>0;
-    return`<tr style="${isReal?'':'opacity:.75'}">
+    const hasHist=histRev>0||histExp>0;
+    const hasReal=realRev>0||realExp>0;
+    return`<tr>
       <td style="${td}font-size:13px;font-weight:600;color:var(--text)">
         ${monthName(m)}
-        ${isReal?'<span style="font-size:9px;background:rgba(1,97,255,.1);color:var(--brand);padding:1px 6px;border-radius:6px;margin-left:6px;font-weight:700">REAL</span>':'<span style="font-size:9px;background:var(--surface-2);color:var(--text-3);padding:1px 6px;border-radius:6px;margin-left:6px">HIST</span>'}
+        ${hasHist?'<span style="font-size:9px;background:rgba(1,97,255,.1);color:var(--brand);padding:1px 6px;border-radius:6px;margin-left:6px;font-weight:700">HIST</span>':hasReal?'<span style="font-size:9px;background:rgba(5,150,105,.1);color:#059669;padding:1px 6px;border-radius:6px;margin-left:6px">REAL</span>':''}
       </td>
       <td style="${td}text-align:right;font-size:13px;color:var(--brand);font-weight:600">${fmt(fat)}</td>
       <td style="${td}text-align:right;font-size:13px;color:#dc2626">${fmt(exp)}</td>
