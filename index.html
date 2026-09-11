@@ -2674,14 +2674,13 @@ function doLogin(){
   currentSystemUser=sysUser;
   saveSession(sysUser.id);
   if(btn){btn.textContent='Entrando...';btn.disabled=true}
-  setTimeout(()=>{
-    if(btn){btn.textContent='Entrar';btn.disabled=false}
-    ['login-wrap','login-page'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
-    const app=document.getElementById('app');
-    if(app){app.style.display='flex';app.classList.add('on','visible')}
-    try{initApp()}catch(e){console.error('initApp:',e)}
-    setTimeout(()=>initSupabase(),100);
-  },300);
+  // Hide login immediately
+  ['login-wrap','login-page'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
+  const app=document.getElementById('app');
+  if(app){app.style.display='flex';app.classList.add('on','visible')}
+  if(btn){btn.textContent='Entrar';btn.disabled=false}
+  try{initApp()}catch(e){console.error('initApp:',e)}
+  setTimeout(()=>initSupabase(),300);
 }
 
 let _selectedLoginUser=null;
@@ -4746,16 +4745,30 @@ function renderCrescimento(){
   const td='padding:10px 16px;border-bottom:1px solid var(--border);';
   tbody.innerHTML=[...allMonths].reverse().map((m,ri)=>{
     const i=allMonths.length-1-ri;
-    const fat=fatData[i];const exp=expData[i];const luc=lucroData[i];const mar=margemData[i];
-    return`<tr>
-      <td style="${td}font-size:13px;font-weight:600;color:var(--text)">${monthName(m)}</td>
+    // For each month: real data takes priority over history
+    const realRev=revenues.filter(r=>r.reference_month===m&&r.status==='pago').reduce((a,r)=>a+Number(r.amount||0),0);
+    const realExp=expenses.filter(e=>{const[y,mo]=(e.date||'').split('-');return`${y}-${mo}`===m}).reduce((a,e)=>a+Number(e.amount||0),0);
+    const h=monthlyHistory.find(x=>x.month===m);
+    const fat=realRev>0?realRev:(h?Number(h.revenue||0):0);
+    const exp=realExp>0?realExp:(h?Number(h.expenses||0):0);
+    const luc=fat-exp;
+    const mar=fat>0?Math.round(luc/fat*100):0;
+    const nc=h?h.new_clients:0;
+    const ch=h?h.churns:0;
+    const cl=h?h.clients:clients.filter(c=>c.status==='ativo').length;
+    const isReal=realRev>0||realExp>0;
+    return`<tr style="${isReal?'':'opacity:.75'}">
+      <td style="${td}font-size:13px;font-weight:600;color:var(--text)">
+        ${monthName(m)}
+        ${isReal?'<span style="font-size:9px;background:rgba(1,97,255,.1);color:var(--brand);padding:1px 6px;border-radius:6px;margin-left:6px;font-weight:700">REAL</span>':'<span style="font-size:9px;background:var(--surface-2);color:var(--text-3);padding:1px 6px;border-radius:6px;margin-left:6px">HIST</span>'}
+      </td>
       <td style="${td}text-align:right;font-size:13px;color:var(--brand);font-weight:600">${fmt(fat)}</td>
       <td style="${td}text-align:right;font-size:13px;color:#dc2626">${fmt(exp)}</td>
       <td style="${td}text-align:right;font-size:13px;font-weight:700;color:${luc>=0?'#16a34a':'#dc2626'}">${fmt(luc)}</td>
       <td style="${td}text-align:right;font-size:13px;color:${mar>=30?'#16a34a':mar>=15?'#d97706':'#dc2626'}">${mar}%</td>
-      <td style="${td}text-align:right;font-size:13px">${clientsData[i]||'—'}</td>
-      <td style="${td}text-align:right;font-size:13px;color:#16a34a">${novosData[i]||'—'}</td>
-      <td style="${td}text-align:right;font-size:13px;color:#dc2626">${churnsData[i]||'—'}</td>
+      <td style="${td}text-align:right;font-size:13px">${cl||'—'}</td>
+      <td style="${td}text-align:right;font-size:13px;color:#16a34a">${nc||'—'}</td>
+      <td style="${td}text-align:right;font-size:13px;color:#dc2626">${ch||'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -7075,20 +7088,19 @@ function tryRestoreSession(){
   }catch(e){return false}
 }
 
-// Try session restore on page load
-window.addEventListener('DOMContentLoaded',()=>{
+// Try session restore immediately (script is at end of body, DOM is ready)
+(function(){
   const restored=tryRestoreSession();
   if(restored){
     document.getElementById('login-page').style.display='none';
     const app=document.getElementById('app');
     if(app){app.style.display='flex';app.classList.add('on','visible')}
     try{initApp()}catch(e){console.error('initApp:',e)}
-    // Load fresh data from Supabase in background
-    setTimeout(()=>initSupabase(),200);
+    setTimeout(()=>initSupabase(),300);
   } else {
     document.getElementById('login-page').style.display='flex';
   }
-});
+})();
 
 </script>
 </body>
