@@ -2670,7 +2670,7 @@ function doLogin(){
   const sysUser=systemUsers.find(u=>u.email.toLowerCase()===email&&u.password===pass);
   if(!sysUser){showLoginError('E-mail ou senha incorretos.');return}
   currentSystemUser=sysUser;
-  const btn=document.querySelector('#login-page .btn-primary');
+  saveSession(sysUser.id);
   if(btn){btn.textContent='Entrando...';btn.disabled=true}
   setTimeout(()=>{
     if(btn){btn.textContent='Entrar';btn.disabled=false}
@@ -2731,12 +2731,11 @@ function showLoginError(msg){
 
 function doLogout(){
   currentSystemUser=null;_selectedLoginUser=null;
+  clearSession();
   const app=document.getElementById('app');
   if(app){app.style.display='none';app.classList.remove('on','visible')}
   const lp=document.getElementById('login-page');
   if(lp)lp.style.display='flex';
-  backToUsers();
-  renderLoginUsers();
 }
 
 // ══════════════════════════════════════════════════════
@@ -7050,11 +7049,45 @@ function delUser(id){
 document.getElementById('login-pass').addEventListener('keydown',function(e){
   if(e.key==='Enter') doLogin();
 });
-// Render user selection cards
-renderLoginUsers();
+document.getElementById('login-email').addEventListener('keydown',function(e){
+  if(e.key==='Enter') document.getElementById('login-pass').focus();
+});
 
-// Show login screen on load (never auto-skip)
-document.getElementById('login-page').style.display='flex';
+// ── SESSION PERSISTENCE ──
+// Save session on login
+const SESSION_KEY='im_session_user_id';
+function saveSession(userId){
+  try{_ls&&_ls.setItem(SESSION_KEY,userId)}catch(e){}
+}
+function clearSession(){
+  try{_ls&&_ls.removeItem(SESSION_KEY)}catch(e){}
+}
+function restoreSession(){
+  try{
+    const savedId=_ls&&_ls.getItem(SESSION_KEY);
+    if(!savedId)return false;
+    const user=systemUsers.find(u=>u.id===savedId);
+    if(!user)return false;
+    currentSystemUser=user;
+    return true;
+  }catch(e){return false}
+}
+
+// Try to restore session on load
+(async()=>{
+  const restored=restoreSession();
+  if(restored){
+    // Hide login, show app immediately
+    document.getElementById('login-page').style.display='none';
+    const app=document.getElementById('app');
+    if(app){app.style.display='flex';app.classList.add('on','visible')}
+    try{initApp()}catch(e){console.error('initApp:',e)}
+    setTimeout(()=>initSupabase(),100);
+  } else {
+    // Show login screen
+    document.getElementById('login-page').style.display='flex';
+  }
+})();
 
 </script>
 </body>
