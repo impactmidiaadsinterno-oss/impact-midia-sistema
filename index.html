@@ -2668,11 +2668,27 @@ function doLogin(){
   const errEl=document.getElementById('login-error-msg');
   if(errEl)errEl.style.display='none';
   if(!email||!pass){showLoginError('Preencha e-mail e senha.');return}
-  const sysUser=systemUsers.find(u=>u.email.toLowerCase()===email&&u.password===pass);
+
+  // Try login with current systemUsers (localStorage)
+  const tryLogin=()=>{
+    // Also check default users as fallback
+    const DEFAULTS=[
+      {id:'su1',name:'Jonathan',email:'jonathan@impactmidia.com',password:'impact2025',role:'Sócio',level:'admin',color:'#0161ff'},
+      {id:'su2',name:'Vitor Hugo',email:'vitorhugo@impactmidia.com',password:'vitor123',role:'Sócio',level:'admin',color:'#7c3aed'},
+      {id:'su3',name:'Letícia',email:'leticia@impactmidia.com',password:'leticia123',role:'Gestora',level:'gestor',color:'#db2777'},
+      {id:'su4',name:'Gabriele',email:'gabriele@impactmidia.com',password:'gabi3214',role:'Gestora',level:'gestor',color:'#16a34a'},
+      {id:'su5',name:'SDR',email:'sdr@impactmidia.com',password:'sdr2025',role:'SDR',level:'sdr',color:'#f59e0b'},
+      {id:'su0',name:'Admin',email:'admin@impactmidia.com',password:'admin123',role:'Administrador',level:'admin',color:'#0161ff'},
+    ];
+    // Merge defaults into systemUsers if not already there
+    DEFAULTS.forEach(d=>{if(!systemUsers.find(u=>u.id===d.id))systemUsers.push(d)});
+    return systemUsers.find(u=>u.email.toLowerCase()===email&&u.password===pass);
+  };
+
+  const sysUser=tryLogin();
   if(!sysUser){showLoginError('E-mail ou senha incorretos.');return}
   currentSystemUser=sysUser;
   saveSession(sysUser.id);
-  // Hide login, show app
   ['login-wrap','login-page'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
   const app=document.getElementById('app');
   if(app){app.style.display='flex';app.classList.add('on','visible')}
@@ -7096,7 +7112,16 @@ function tryRestoreSession(){
   try{
     const savedId=_ls&&_ls.getItem(SESSION_KEY);
     if(!savedId)return false;
-    // Try to find in systemUsers (may be loaded from localStorage already)
+    // Merge defaults so they're always available
+    const DEFAULTS=[
+      {id:'su1',name:'Jonathan',email:'jonathan@impactmidia.com',password:'impact2025',role:'Sócio',level:'admin',color:'#0161ff'},
+      {id:'su2',name:'Vitor Hugo',email:'vitorhugo@impactmidia.com',password:'vitor123',role:'Sócio',level:'admin',color:'#7c3aed'},
+      {id:'su3',name:'Letícia',email:'leticia@impactmidia.com',password:'leticia123',role:'Gestora',level:'gestor',color:'#db2777'},
+      {id:'su4',name:'Gabriele',email:'gabriele@impactmidia.com',password:'gabi3214',role:'Gestora',level:'gestor',color:'#16a34a'},
+      {id:'su5',name:'SDR',email:'sdr@impactmidia.com',password:'sdr2025',role:'SDR',level:'sdr',color:'#f59e0b'},
+      {id:'su0',name:'Admin',email:'admin@impactmidia.com',password:'admin123',role:'Administrador',level:'admin',color:'#0161ff'},
+    ];
+    DEFAULTS.forEach(d=>{if(!systemUsers.find(u=>u.id===d.id))systemUsers.push(d)});
     const user=systemUsers.find(u=>u.id===savedId);
     if(!user)return false;
     currentSystemUser=user;
