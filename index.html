@@ -2672,12 +2672,10 @@ function doLogin(){
   if(!sysUser){showLoginError('E-mail ou senha incorretos.');return}
   currentSystemUser=sysUser;
   saveSession(sysUser.id);
-  if(btn){btn.textContent='Entrando...';btn.disabled=true}
-  // Hide login immediately
+  // Hide login, show app
   ['login-wrap','login-page'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none'});
   const app=document.getElementById('app');
   if(app){app.style.display='flex';app.classList.add('on','visible')}
-  if(btn){btn.textContent='Entrar';btn.disabled=false}
   try{initApp()}catch(e){console.error('initApp:',e)}
   setTimeout(()=>initSupabase(),300);
 }
