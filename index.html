@@ -2625,11 +2625,13 @@ function getRevenueForMonth(month){
   return h?Number(h.revenue||0):0;
 }
 function getExpensesForMonth(month){
-  const real=expenses.filter(e=>{const[y,m]=(e.date||'').split('-');return`${y}-${m}`===month}).reduce((a,e)=>a+Number(e.amount),0);
-  const hasReal=expenses.some(e=>{const[y,m]=(e.date||'').split('-');return`${y}-${m}`===month});
-  if(hasReal) return real;
+  // Use real expense entries if any exist
+  const realExps=expenses.filter(e=>{const[y,m]=(e.date||'').split('-');return`${y}-${m}`===month});
+  const realTotal=realExps.reduce((a,e)=>a+Number(e.amount||0),0);
+  if(realExps.length>0) return realTotal;
+  // No real expenses — use manual history
   const h=monthlyHistory.find(x=>x.month===month);
-  return h?h.expenses:0;
+  return h?Number(h.expenses||0):0;
 }
 function getClientsForMonth(month){
   const h=monthlyHistory.find(x=>x.month===month);
@@ -7054,18 +7056,18 @@ document.getElementById('login-email').addEventListener('keydown',function(e){
 });
 
 // ── SESSION PERSISTENCE ──
-// Save session on login
 const SESSION_KEY='im_session_user_id';
 function saveSession(userId){
-  try{_ls&&_ls.setItem(SESSION_KEY,userId)}catch(e){}
+  try{if(_ls)_ls.setItem(SESSION_KEY,userId)}catch(e){}
 }
 function clearSession(){
-  try{_ls&&_ls.removeItem(SESSION_KEY)}catch(e){}
+  try{if(_ls)_ls.removeItem(SESSION_KEY)}catch(e){}
 }
-function restoreSession(){
+function tryRestoreSession(){
   try{
     const savedId=_ls&&_ls.getItem(SESSION_KEY);
     if(!savedId)return false;
+    // Try to find in systemUsers (may be loaded from localStorage already)
     const user=systemUsers.find(u=>u.id===savedId);
     if(!user)return false;
     currentSystemUser=user;
@@ -7073,21 +7075,20 @@ function restoreSession(){
   }catch(e){return false}
 }
 
-// Try to restore session on load
-(async()=>{
-  const restored=restoreSession();
+// Try session restore on page load
+window.addEventListener('DOMContentLoaded',()=>{
+  const restored=tryRestoreSession();
   if(restored){
-    // Hide login, show app immediately
     document.getElementById('login-page').style.display='none';
     const app=document.getElementById('app');
     if(app){app.style.display='flex';app.classList.add('on','visible')}
     try{initApp()}catch(e){console.error('initApp:',e)}
-    setTimeout(()=>initSupabase(),100);
+    // Load fresh data from Supabase in background
+    setTimeout(()=>initSupabase(),200);
   } else {
-    // Show login screen
     document.getElementById('login-page').style.display='flex';
   }
-})();
+});
 
 </script>
 </body>
