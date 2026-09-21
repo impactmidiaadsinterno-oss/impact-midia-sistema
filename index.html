@@ -2834,8 +2834,15 @@ function renderDashboard(){
   const curProfit=curPaid-curExp;
 
   const activeClients=clients.filter(c=>c.status==='ativo');
-  const newThisMonth=clients.filter(c=>{if(!c.start_date)return false;const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM}).length;
-  const leftThisMonth=clients.filter(c=>{if(!c.exit_date)return false;const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM}).length;
+  const newThisMonth=clients.filter(c=>{
+    if(c.start_date){const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM;}
+    if(c.created_at){const[y,m]=c.created_at.slice(0,7).split('-');return`${y}-${m}`===nowM;}
+    return false;
+  }).length;
+  const leftThisMonth=clients.filter(c=>{
+    if(!c.exit_date)return false;
+    const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM;
+  }).length;
   const mrr=activeClients.reduce((a,c)=>a+Number(c.monthly_value),0);
   const ticket=activeClients.length>0?mrr/activeClients.length:0;
   const riskCount=activeClients.filter(c=>calcHealth(c)<50).length;
@@ -2926,8 +2933,15 @@ function renderAlerts(nowM, now){
   const todayDay=now.getDate();
   const daysInMonth=new Date(y,m,0).getDate();
   const activeClients=clients.filter(c=>c.status==='ativo');
-  const newThisMonth=clients.filter(c=>{if(!c.start_date)return false;const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM}).length;
-  const leftThisMonth=clients.filter(c=>{if(!c.exit_date)return false;const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM}).length;
+  const newThisMonth=clients.filter(c=>{
+    if(c.start_date){const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM;}
+    if(c.created_at){const[y,m]=c.created_at.slice(0,7).split('-');return`${y}-${m}`===nowM;}
+    return false;
+  }).length;
+  const leftThisMonth=clients.filter(c=>{
+    if(!c.exit_date)return false;
+    const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM;
+  }).length;
 
   const overdue=[];   // venceu no mês e não tem pagamento confirmado
   const dueToday=[];  // vence hoje
@@ -3018,8 +3032,15 @@ function renderForecast(nowM, mrr, curPaid){
   const nextM=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
 
   const activeClients=clients.filter(c=>c.status==='ativo');
-  const newThisMonth=clients.filter(c=>{if(!c.start_date)return false;const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM}).length;
-  const leftThisMonth=clients.filter(c=>{if(!c.exit_date)return false;const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM}).length;
+  const newThisMonth=clients.filter(c=>{
+    if(c.start_date){const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM;}
+    if(c.created_at){const[y,m]=c.created_at.slice(0,7).split('-');return`${y}-${m}`===nowM;}
+    return false;
+  }).length;
+  const leftThisMonth=clients.filter(c=>{
+    if(!c.exit_date)return false;
+    const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM;
+  }).length;
   const guaranteed=mrr; // all active clients = guaranteed next month
 
   // Pending this month (might still come in)
@@ -3864,10 +3885,12 @@ function saveClient(){
     cd_identificacao:existing?.cd_identificacao||{},cd_resumo:existing?.cd_resumo||null,
     cd_pendencias_head:existing?.cd_pendencias_head||[],cd_diario:existing?.cd_diario||{google:[],meta:[]},
     cd_criativos:existing?.cd_criativos||[],health_score:0,
+    created_at:existing?.created_at||new Date().toISOString(),
   };
   data.health_score=calcHealth(data);
   if(editClientId){const i=clients.findIndex(c=>c.id===editClientId);clients[i]=data}else clients.push(data);
   saveAll();closeModal('client-modal');renderClients();
+  if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
   showToast(editClientId?'Cliente atualizado':'Cliente cadastrado');
 }
 
@@ -5023,13 +5046,18 @@ function confirmChurnClient(){
   });
 
   // 2. Cancel or delete
+  const today=new Date().toISOString().slice(0,10);
   if(action==='cancel'){
     const i=clients.findIndex(x=>x.id===churnClientId);
     clients[i]={...c, status:'cancelado', churn_risk:'alto',
+      exit_date:today,
       notes:(c.notes?c.notes+'\n':'')+'Saída registrada em '+refMonth+': '+reasonLabels[reason]+(notes?' — '+notes:'')
     };
   } else {
-    clients=clients.filter(x=>x.id!==churnClientId);
+    // Mark exit_date before removing so leftThisMonth counts it
+    const i=clients.findIndex(x=>x.id===churnClientId);
+    if(i>=0){clients[i]={...c,exit_date:today,status:'cancelado'}}
+    setTimeout(()=>{clients=clients.filter(x=>x.id!==churnClientId);saveAll();},100);
   }
 
   saveAll();
