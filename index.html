@@ -4244,7 +4244,7 @@ function renderFinanceiro(){
   const margin=totalPaid>0?(profit/totalPaid*100):0;
   const activeClients=clients.filter(c=>c.status==='ativo');
   const clientsWithEntry=new Set(curRevs.map(r=>r.client_id));
-  const missingClients=activeClients.filter(c=>!clientsWithEntry.has(c.id));
+  const missingClients=activeClients.filter(c=>c.status==='ativo'&&!clientsWithEntry.has(c.id));
   const missingTotal=missingClients.reduce((a,c)=>a+Number(c.monthly_value||0),0);
   const totalExpected=totalPaid+totalPending+missingTotal;
   const receivedPct=totalExpected>0?Math.round(totalPaid/totalExpected*100):0;
@@ -4893,14 +4893,36 @@ function saveVendaPontual(){
     valor_parcela:parcelas>1?Math.round(valor/parcelas):valor,
     data:g('vpf-data'),resp:g('vpf-resp'),obs:g('vpf-obs')
   };
-  if(editVpId){const i=vendasPontuais.findIndex(x=>x.id===editVpId);vendasPontuais[i]=data}
-  else vendasPontuais.unshift(data);
+  if(editVpId){
+    vendasPontuais[vendasPontuais.findIndex(x=>x.id===editVpId)]=data;
+    // Update linked revenue entry
+    const ri=revenues.findIndex(r=>r.venda_pontual_id===editVpId);
+    if(ri>=0) revenues[ri]={...revenues[ri],amount:valor,client_name:g('vpf-cliente'),description:servico,status:data.status==='pago'?'pago':'pendente',reference_month:data.data?.slice(0,7)||currentFinMonth};
+  } else {
+    vendasPontuais.unshift(data);
+    // Auto-create revenue entry in financeiro
+    const cl=clients.find(c=>c.company_name===g('vpf-cliente'));
+    revenues.push({
+      id:uid(),
+      venda_pontual_id:data.id,
+      client_id:cl?.id||'',
+      client_name:g('vpf-cliente'),
+      tipo:'venda_pontual',
+      desc:servico,
+      amount:valor,
+      paid_at:data.status==='pago'?g('vpf-data')||new Date().toISOString().slice(0,10):null,
+      reference_month:g('vpf-data')?.slice(0,7)||currentFinMonth,
+      status:data.status==='pago'?'pago':'pendente',
+      payment_method:'',
+      notes:'Venda pontual: '+servico,
+    });
+  }
   saveAll();closeModal('venda-pontual-modal');renderVendasPontuais();
-  showToast(editVpId?'Venda atualizada':'Venda registrada');editVpId=null;
+  showToast(editVpId?'Venda atualizada':'✅ Venda registrada e lançada no Financeiro');editVpId=null;
 }
 
 function deleteVendaPontual(id){
-  deleteCallback=()=>{vendasPontuais.splice(vendasPontuais.findIndex(x=>x.id===id),1);saveAll();renderVendasPontuais();closeModal('confirm-modal');showToast('Venda excluída')};
+  deleteCallback=()=>{const ri=revenues.findIndex(r=>r.venda_pontual_id===id);if(ri>=0)revenues.splice(ri,1);vendasPontuais.splice(vendasPontuais.findIndex(x=>x.id===id),1);saveAll();renderVendasPontuais();closeModal('confirm-modal');showToast('Venda excluída')};
   document.getElementById('confirm-text').textContent='Excluir esta venda?';openModal('confirm-modal');
 }
 
