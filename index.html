@@ -3704,7 +3704,8 @@ function renderClients(){
   let filtered=base.filter(c=>{
     const q=clientFilter.toLowerCase();
     const mQ=!q||c.company_name.toLowerCase().includes(q)||(c.contact_name||'').toLowerCase().includes(q)||(c.manager||'').toLowerCase().includes(q);
-    const sQ=!clientStatusFilter||c.status===clientStatusFilter;
+    // By default hide cancelled clients; show them only if explicitly filtered
+    const sQ=clientStatusFilter?c.status===clientStatusFilter:c.status!=='cancelado';
     const mgrQ=!isAdmin||!clientManagerFilter||c.manager===clientManagerFilter;
     const phQ=!clientPhaseFilter||c.project_phase===clientPhaseFilter;
     return mQ&&sQ&&mgrQ&&phQ;
@@ -4902,16 +4903,18 @@ function saveVendaPontual(){
     vendasPontuais.unshift(data);
     // Auto-create revenue entry in financeiro
     const cl=clients.find(c=>c.company_name===g('vpf-cliente'));
+    const vpDate=g('vpf-data')||new Date().toISOString().slice(0,10);
+    const vpMonth=vpDate.slice(0,7)||currentFinMonth;
     revenues.push({
       id:uid(),
       venda_pontual_id:data.id,
       client_id:cl?.id||'',
-      client_name:g('vpf-cliente'),
+      client_name:g('vpf-cliente')||servico,
       tipo:'venda_pontual',
       desc:servico,
       amount:valor,
-      paid_at:data.status==='pago'?g('vpf-data')||new Date().toISOString().slice(0,10):null,
-      reference_month:g('vpf-data')?.slice(0,7)||currentFinMonth,
+      paid_at:data.status==='pago'?vpDate:null,
+      reference_month:vpMonth,
       status:data.status==='pago'?'pago':'pendente',
       payment_method:'',
       notes:'Venda pontual: '+servico,
@@ -5071,15 +5074,12 @@ function confirmChurnClient(){
   const today=new Date().toISOString().slice(0,10);
   if(action==='cancel'){
     const i=clients.findIndex(x=>x.id===churnClientId);
-    clients[i]={...c, status:'cancelado', churn_risk:'alto',
-      exit_date:today,
-      notes:(c.notes?c.notes+'\n':'')+'Saída registrada em '+refMonth+': '+reasonLabels[reason]+(notes?' — '+notes:'')
+    clients[i]={...c, status:'cancelado', churn_risk:'alto', exit_date:today,
+      notes:(c.notes?c.notes+'\n':'')+'Saída: '+reasonLabels[reason]+(notes?' — '+notes:'')
     };
   } else {
-    // Mark exit_date before removing so leftThisMonth counts it
-    const i=clients.findIndex(x=>x.id===churnClientId);
-    if(i>=0){clients[i]={...c,exit_date:today,status:'cancelado'}}
-    setTimeout(()=>{clients=clients.filter(x=>x.id!==churnClientId);saveAll();},100);
+    // Remove completely
+    clients=clients.filter(x=>x.id!==churnClientId);
   }
 
   saveAll();
