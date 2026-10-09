@@ -1353,18 +1353,6 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
       </div>
     </div>
   </div>
-
-  <!-- LEMBRETES PARA GESTORAS — apenas admin vê -->
-  <div class="admin-only" style="margin-top:20px">
-    <div class="card cp">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-size:14px;font-weight:600">🔔 Lembretes para Gestoras</div>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalNovoLembrete()">+ Novo lembrete</button>
-      </div>
-      <div style="font-size:12px;color:var(--text-2);margin-bottom:16px">Crie lembretes semanais ou diários. Eles aparecem como notificação na tela das gestoras no horário certo.</div>
-      <div id="lembretes-lista"></div>
-    </div>
-  </div>
 </div>
 
     </div><!-- /content -->
@@ -2076,10 +2064,17 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
 ══════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-crm" style="padding-bottom:60px">
   <div class="sh">
-    <div><div class="st">CRM — SDR</div><div class="ss" id="crm-sub">Pipeline de prospecção</div></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-secondary" onclick="setCrmView('dash')" id="crm-btn-dash">📊 Dashboard</button>
-      <button class="btn btn-secondary" onclick="setCrmView('kanban')" id="crm-btn-kanban">📋 Pipeline</button>
+    <div><div class="st">CRM — Gestão de Leads</div><div class="ss" id="crm-sub">Pipeline de prospecção</div></div>    <div style="display:flex;gap:8px">
+      <select class="inp" style="width:160px;font-size:12px" onchange="filterCrm('status',this.value)" id="crm-filter-status">
+        <option value="">Todos os status</option>
+        <option value="novo">Novo lead</option>
+        <option value="contato">Primeiro contato</option>
+        <option value="apresentacao">Apresentação</option>
+        <option value="proposta">Proposta enviada</option>
+        <option value="negociacao">Em negociação</option>
+        <option value="fechado">Fechado ✓</option>
+        <option value="perdido">Perdido ✗</option>
+      </select>
       <button class="btn btn-primary" onclick="openLeadModal()">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Novo lead
       </button>
@@ -2092,68 +2087,29 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
     <div class="verse-ref" id="crm-verse-ref"></div>
   </div>
 
-  <!-- DASHBOARD VIEW -->
-  <div id="crm-dash-view">
-    <!-- KPI CARDS -->
-    <div class="metrics-grid" id="crm-kpis" style="margin-bottom:16px"></div>
+  <!-- PIPELINE KANBAN -->
+  <div id="crm-kanban" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:20px;min-height:400px"></div>
 
-    <!-- MÉTRICAS DE REUNIÕES -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-      <!-- Funil de conversão -->
-      <div class="card cp">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px">🎯 Funil do mês</div>
-        <div id="crm-funil" style="display:flex;flex-direction:column;gap:8px"></div>
-      </div>
-      <!-- Origens dos leads -->
-      <div class="card cp">
-        <div style="font-size:13px;font-weight:700;margin-bottom:14px">📡 Origem dos leads</div>
-        <div id="crm-origens" style="display:flex;flex-direction:column;gap:8px"></div>
-      </div>
+  <!-- TABLE VIEW -->
+  <div class="card" style="margin-top:20px;overflow:auto">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:13px;font-weight:600">Todos os leads</div>
+      <div class="sw" style="max-width:240px"><div class="si"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><input type="text" placeholder="Buscar..." oninput="filterCrm('search',this.value)"/></div>
     </div>
-
-    <!-- REUNIÕES RECENTES (visíveis para SDR e admin) -->
-    <div class="card cp" style="margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
-        <span>📅 Reuniões registradas</span>
-        <button class="btn btn-primary btn-sm" onclick="openReuniaoModal()">+ Nova reunião</button>
-      </div>
-      <div id="crm-reunioes-list"></div>
-    </div>
-  </div>
-
-  <!-- PIPELINE VIEW -->
-  <div id="crm-pipeline-view" style="display:none">
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <select class="inp" style="width:160px;font-size:12px" onchange="filterCrm('status',this.value)" id="crm-filter-status">
-        <option value="">Todos os status</option>
-        <option value="novo">Novo lead</option>
-        <option value="contato">Primeiro contato</option>
-        <option value="apresentacao">Apresentação</option>
-        <option value="proposta">Proposta enviada</option>
-        <option value="negociacao">Em negociação</option>
-        <option value="fechado">Fechado ✓</option>
-        <option value="perdido">Perdido ✗</option>
-      </select>
-      <div class="sw" style="flex:1;max-width:280px"><div class="si"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><input type="text" placeholder="Buscar lead..." oninput="filterCrm('search',this.value)"/></div>
-    </div>
-    <div id="crm-kanban" style="display:flex;gap:14px;overflow-x:auto;padding-bottom:20px;min-height:300px"></div>
-    <div class="card" style="margin-top:16px;overflow:auto">
-      <div style="padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600">Todos os leads</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Lead / Empresa</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Contato</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Nicho</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Origem</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Status</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Valor est.</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Próximo passo</th>
-          <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border)">Data</th>
-          <th style="padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--border)"></th>
-        </tr></thead>
-        <tbody id="crm-tbody"></tbody>
-      </table>
-    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Lead / Empresa</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Contato</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Nicho</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Origem</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Status</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Valor est.</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Próximo passo</th>
+        <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap">Data</th>
+        <th style="padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--border)"></th>
+      </tr></thead>
+      <tbody id="crm-tbody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -2399,7 +2355,6 @@ let currentDetailClientId = null;
 let cdSemStatus = 'verde';
 let cdEscopoTemp = [];
 let leads = S.load('leads',[]);
-let lembretes = S.load('lembretes',[]); // {id, titulo, mensagem, dia_semana (0-6 ou 'diario'), hora, ativo, criado_em}
 let crmFilter = {status:'', search:''};
 let editLeadId = null;
 const ESCOPO_PADRAO_CD=['Google Ads','Meta Ads','Otimização Google Meu Negócio','Landing Page','Relatório mensal','Reunião mensal','Criação de criativos','Rastreamento GTM','Gestão de Instagram','Edição de posts'];
@@ -2509,7 +2464,7 @@ function showInlineModal(title,bodyHtml,saveFn,maxW){
   openModal('inline-modal');
 }
 function _getDataMap(){
-  return{clients,revenues,vendasPontuais,expenses,goals,meetings,monthlyHistory,settings,movements,systemUsers,leads,lembretes};
+  return{clients,revenues,vendasPontuais,expenses,goals,meetings,monthlyHistory,settings,movements,systemUsers,leads};
 }
 function _applyDataMap(map){
   if(map.clients)clients=map.clients;
@@ -2523,7 +2478,6 @@ function _applyDataMap(map){
   if(map.movements)movements=map.movements;
   if(map.systemUsers&&map.systemUsers.length)systemUsers=map.systemUsers;
   if(map.leads)leads=map.leads;
-  if(map.lembretes)lembretes=map.lembretes;
 }
 
 // Debounced save to Supabase (avoids hammering the API)
@@ -2820,7 +2774,7 @@ function nav(p,el){
   if(p==='reunioes')renderReunioes();
   if(p==='crescimento')renderCrescimento();
   if(p==='vendas-pontuais')renderVendasPontuais();
-  if(p==='configuracoes'){document.getElementById('cfg-monthly-goal').value=settings.monthlyGoal||50000;document.getElementById('cfg-annual-goal').value=settings.annualGoal||100000;renderBackupInfo();renderLembretes();}
+  if(p==='configuracoes'){document.getElementById('cfg-monthly-goal').value=settings.monthlyGoal||50000;document.getElementById('cfg-annual-goal').value=settings.annualGoal||100000;renderBackupInfo()}
   if(p==='crm')renderCrm();
 }
 
@@ -3064,17 +3018,6 @@ function renderAlerts(nowM, now){
       <svg viewBox="0 0 24 24" width="14" height="14" stroke="#d97706" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span style="color:#92400e"><strong>${expiring.length} contrato${expiring.length>1?'s':''} vencendo em breve</strong> — ${names}</span>
       <span style="margin-left:auto;font-size:11px;color:#d97706;opacity:.8">Ver clientes →</span>
-    </div>`;
-  }
-
-  // ── ESTRATÉGIAS PARA REVISÃO (só admin vê) ──
-  const estratPendentes=currentSystemUser?.level==='admin'?clients.filter(c=>c.status==='ativo'&&c.cd_estrategia?.notificar_head):[];
-  if(estratPendentes.length){
-    const names=estratPendentes.slice(0,3).map(x=>x.company_name).join(', ')+(estratPendentes.length>3?` e mais ${estratPendentes.length-3}`:'');
-    html+=`<div class="alert-item" style="background:rgba(124,58,237,.08);border-left:3px solid #7c3aed;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.company_name==='${estratPendentes[0].company_name}');if(c){currentDetailClientId=c.id;showClientDetail(c.id,'estrategia')}})()">
-      <svg viewBox="0 0 24 24" width="14" height="14" stroke="#7c3aed" fill="none" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      <span style="color:#5b21b6"><strong>${estratPendentes.length} estratégia${estratPendentes.length>1?'s':''} aguardando revisão</strong> — ${names}</span>
-      <span style="margin-left:auto;font-size:11px;color:#7c3aed;opacity:.8">Revisar →</span>
     </div>`;
   }
 
@@ -6250,40 +6193,7 @@ function renderCdEstrategia(){
         </div>`:''}
       </div>`:''}
     <!-- OBS GERAIS -->
-    ${e.obs?`<div class="card cp"><div style="font-size:13px;font-weight:700;margin-bottom:10px">Observações gerais</div><div style="font-size:13px;white-space:pre-wrap;line-height:1.7;color:var(--text-2)">${e.obs}</div></div>`:''}
-    <!-- NOTIFICAR HEAD: visível só para gestores e para admin (como leitura) -->
-    ${(()=>{
-      const lvl=currentSystemUser?.level;
-      const isGestor=lvl==='gestor';
-      const isAdmin=lvl==='admin';
-      if(!isGestor&&!isAdmin) return '';
-      const notAt=e.notificar_head_at?new Date(e.notificar_head_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-      const borderColor=e.notificar_head?'rgba(22,163,74,.3)':'var(--border)';
-      const bgColor=e.notificar_head?'rgba(22,163,74,.06)':'var(--surface-2)';
-      const btnHtml=isGestor
-        ? `<button onclick="toggleNotificarHead()" style="padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);border:1px solid ${e.notificar_head?'rgba(22,163,74,.4)':'var(--brand)'};background:${e.notificar_head?'rgba(22,163,74,.12)':'var(--brand)'};color:${e.notificar_head?'#16a34a':'#fff'}">${e.notificar_head?'↩ Remover notificação':'📨 Notificar Head de Tráfego'}</button>`
-        : (e.notificar_head?`<span style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(22,163,74,.12);color:#16a34a;border:1px solid rgba(22,163,74,.3)">✅ Aguardando sua revisão</span>`:'');
-      return `<div style="margin-top:16px;padding:14px 18px;border-radius:var(--radius-lg);border:1px solid ${borderColor};background:${bgColor};display:flex;align-items:center;gap:14px">
-        <div style="font-size:26px">${e.notificar_head?'✅':'🔔'}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700;color:var(--text)">${e.notificar_head?'Estratégia enviada para revisão':'Estratégia em construção'}</div>
-          <div style="font-size:12px;color:var(--text-3);margin-top:2px">${e.notificar_head?`Notificado em ${notAt}`:'Avise o Head de Tráfego quando a estratégia estiver pronta para revisão'}</div>
-        </div>
-        ${btnHtml}
-      </div>`;
-    })()}`;
-}
-function toggleNotificarHead(){
-  const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
-  if(!c.cd_estrategia)c.cd_estrategia={};
-  const e=c.cd_estrategia;
-  if(e.notificar_head){
-    e.notificar_head=false;e.notificar_head_at=null;
-    saveAll();renderCdEstrategia();showToast('Notificação removida');
-  } else {
-    e.notificar_head=true;e.notificar_head_at=new Date().toISOString();
-    saveAll();renderCdEstrategia();showToast('✅ Head de Tráfego notificado!',3000);
-  }
+    ${e.obs?`<div class="card cp"><div style="font-size:13px;font-weight:700;margin-bottom:10px">Observações gerais</div><div style="font-size:13px;white-space:pre-wrap;line-height:1.7;color:var(--text-2)">${e.obs}</div></div>`:''}`;
 }
 function openCdEstrategiaModal(){
   const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
@@ -6610,186 +6520,76 @@ const PIPELINE_STAGES=[
 const TEMP_CONFIG={quente:{icon:'🔴',label:'Quente'},morno:{icon:'🟡',label:'Morno'},frio:{icon:'🔵',label:'Frio'}};
 const ORIGEM_LABEL={instagram:'Instagram',indicacao:'Indicação',google:'Google',prospeccao:'Prospecção ativa',evento:'Evento',site:'Site',outro:'Outro'};
 
-let crmViewMode='dash';
-function setCrmView(v){
-  crmViewMode=v;
-  document.getElementById('crm-dash-view').style.display=v==='dash'?'block':'none';
-  document.getElementById('crm-pipeline-view').style.display=v==='kanban'?'block':'none';
-  document.getElementById('crm-btn-dash').className='btn btn-'+(v==='dash'?'primary':'secondary');
-  document.getElementById('crm-btn-kanban').className='btn btn-'+(v==='kanban'?'primary':'secondary');
-  renderCrm();
-}
-
 function renderCrm(){
-  // Versículo
   const cv=getVerse();
   const cvt=document.getElementById('crm-verse-text');const cvr=document.getElementById('crm-verse-ref');
   if(cvt)cvt.textContent='"'+cv.text+'"';if(cvr)cvr.textContent=cv.ref;
+  const filtered=leads.filter(l=>{
+    const sq=crmFilter.search.toLowerCase();
+    const matchSearch=!sq||l.nome?.toLowerCase().includes(sq)||l.nicho?.toLowerCase().includes(sq)||l.contato?.toLowerCase().includes(sq);
+    const matchStatus=!crmFilter.status||l.status===crmFilter.status;
+    return matchSearch&&matchStatus;
+  });
 
-  const nowM=nowMonth();
-  const thisMonthLeads=leads.filter(l=>{const[y,m]=(l.data_entrada||'').split('-');return`${y}-${m}`===nowM});
-  const totalLeads=leads.length;
-  const leadsNoMes=thisMonthLeads.length;
-  const reunioes=meetings;
-  const reunioesNoMes=reunioes.filter(r=>{const[y,m]=(r.date||'').split('-');return`${y}-${m}`===nowM});
-  const agendadas=reunioesNoMes.filter(r=>r.closed==='agendada'||r.closed==='realizada').length;
-  const noShow=reunioesNoMes.filter(r=>r.closed==='reagendada').length;
-  const fechamentos=reunioesNoMes.filter(r=>r.closed==='sim').length;
-  const naoFechou=reunioesNoMes.filter(r=>r.closed==='nao').length;
-  const taxaFechamento=reunioesNoMes.length>0?Math.round(fechamentos/reunioesNoMes.length*100):0;
-  const taxaNoShow=reunioesNoMes.length>0?Math.round(noShow/reunioesNoMes.length*100):0;
-  const pipeline=leads.filter(l=>l.status!=='fechado'&&l.status!=='perdido').reduce((a,l)=>a+Number(l.valor||0),0);
-  const receitaGerada=reunioesNoMes.filter(r=>r.closed==='sim').reduce((a,r)=>a+Number(r.valor||0),0);
+  document.getElementById('crm-sub').textContent=`${leads.length} leads · ${leads.filter(l=>l.status==='fechado').length} fechados · ${leads.filter(l=>l.status!=='fechado'&&l.status!=='perdido').length} ativos`;
 
-  document.getElementById('crm-sub').textContent=`${totalLeads} leads total · ${leadsNoMes} este mês · ${fechamentos} fechamentos`;
-
-  // ── KPI CARDS ──
-  const kpis=document.getElementById('crm-kpis');
-  if(kpis){
-    kpis.innerHTML=[
-      {l:'Leads no mês',v:leadsNoMes,s:'Novos cadastrados',ic:'👥',c:'#0161ff'},
-      {l:'Reuniões no mês',v:reunioesNoMes.length,s:'Agendadas/realizadas',ic:'📅',c:'#7c3aed'},
-      {l:'Fechamentos',v:fechamentos,s:`Taxa: ${taxaFechamento}%`,ic:'💰',c:'#059669'},
-      {l:'No-show',v:noShow,s:`Taxa: ${taxaNoShow}%`,ic:'❌',c:'#dc2626'},
-      {l:'Não fechou',v:naoFechou,s:'Oportunidades perdidas',ic:'😔',c:'#d97706'},
-      {l:'Pipeline aberto',v:fmt(pipeline),s:'Valor em negociação',ic:'📊',c:'var(--brand)'},
-    ].map(x=>`<div class="mc" style="position:relative;overflow:hidden">
-      <div style="position:absolute;top:10px;right:10px;font-size:18px;opacity:.5">${x.ic}</div>
-      <div class="mc-label">${x.l}</div>
-      <div class="mc-value" style="color:${x.c};font-size:${String(x.v).length>6?'16px':'inherit'}">${x.v}</div>
-      <div class="mc-sub">${x.s}</div>
-      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:${x.c};opacity:.3;border-radius:0 0 var(--radius-lg) var(--radius-lg)"></div>
-    </div>`).join('');
-  }
-
-  // ── FUNIL ──
-  const funil=document.getElementById('crm-funil');
-  if(funil){
-    const steps=[
-      {l:'Leads captados',v:leadsNoMes,c:'#0161ff'},
-      {l:'Reuniões marcadas',v:reunioesNoMes.length,c:'#7c3aed'},
-      {l:'Reuniões realizadas',v:reunioesNoMes.filter(r=>r.closed!=='agendada').length,c:'#d97706'},
-      {l:'Propostas enviadas',v:reunioesNoMes.filter(r=>r.closed==='andamento'||r.closed==='sim'||r.closed==='nao').length,c:'#0891b2'},
-      {l:'Fechamentos',v:fechamentos,c:'#059669'},
-    ];
-    const max=Math.max(...steps.map(s=>s.v),1);
-    funil.innerHTML=steps.map((s,i)=>`<div>
-      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-        <span style="color:var(--text-2);font-weight:600">${s.l}</span>
-        <span style="font-weight:700;color:${s.c}">${s.v}</span>
+  // KANBAN
+  const kanban=document.getElementById('crm-kanban');
+  kanban.innerHTML=PIPELINE_STAGES.map(stage=>{
+    const stageLeads=leads.filter(l=>l.status===stage.key);
+    const total=stageLeads.reduce((a,l)=>a+Number(l.valor||0),0);
+    return`<div style="min-width:220px;max-width:220px;flex-shrink:0">
+      <div style="padding:10px 14px;border-radius:10px 10px 0 0;background:${stage.color};display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;font-weight:700;color:#fff">${stage.label}</span>
+        <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.8);background:rgba(255,255,255,.2);padding:1px 7px;border-radius:10px">${stageLeads.length}</span>
       </div>
-      <div style="height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${s.v/max*100}%;background:${s.c};border-radius:4px;transition:width .5s ease"></div>
+      ${total>0?`<div style="padding:5px 14px;background:${stage.color}18;border-left:3px solid ${stage.color};font-size:11px;color:${stage.color};font-weight:600">${fmt(total)}/mês est.</div>`:''}
+      <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--surface-2);border-radius:0 0 10px 10px;min-height:120px">
+        ${stageLeads.length?stageLeads.map(l=>`
+          <div onclick="openLeadModal('${l.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='${stage.color}'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.nome||'—'}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:6px">${l.nicho||'—'}</div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              ${l.temp?`<span style="font-size:10px">${TEMP_CONFIG[l.temp]?.icon||''}</span>`:''}
+              ${l.valor?`<span style="font-size:10px;font-weight:600;color:${stage.color}">${fmt(l.valor)}</span>`:''}
+              ${l.data_proximo?`<span style="font-size:10px;color:var(--text-3)">${l.data_proximo.split('-').reverse().join('/')}</span>`:''}
+            </div>
+          </div>`).join('')
+        :`<div style="text-align:center;padding:20px 8px;color:var(--text-3);font-size:11px">Nenhum lead</div>`}
       </div>
-    </div>`).join('');
-  }
+    </div>`;
+  }).join('');
 
-  // ── ORIGENS ──
-  const origensEl=document.getElementById('crm-origens');
-  if(origensEl){
-    const origemLabel={instagram:'📷 Instagram',indicacao:'🤝 Indicação',prospeccao:'📞 Prospecção ativa',google:'🔍 Google',evento:'🎪 Evento',linkedin:'💼 LinkedIn',outro:'📦 Outro'};
-    const origemColors={instagram:'#db2777',indicacao:'#059669',prospeccao:'#0161ff',google:'#ea4335',evento:'#d97706',linkedin:'#0a66c2',outro:'#6b7280'};
-    const byCounts={};
-    leads.forEach(l=>{if(l.origem)byCounts[l.origem]=(byCounts[l.origem]||0)+1});
-    const max=Math.max(...Object.values(byCounts),1);
-    const sorted=Object.entries(byCounts).sort((a,b)=>b[1]-a[1]);
-    origensEl.innerHTML=sorted.length?sorted.map(([orig,count])=>{
-      const color=origemColors[orig]||'#6b7280';
-      return`<div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-          <span style="color:var(--text-2);font-weight:600">${origemLabel[orig]||orig}</span>
-          <span style="font-weight:700;color:${color}">${count} lead${count>1?'s':''}</span>
-        </div>
-        <div style="height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${count/max*100}%;background:${color};border-radius:4px"></div>
-        </div>
-      </div>`;
-    }).join(''):'<div style="text-align:center;padding:16px;color:var(--text-3);font-size:12px">Nenhum lead com origem definida</div>';
+  // TABLE
+  const tb=document.getElementById('crm-tbody');
+  const statusBadge=s=>{const st=PIPELINE_STAGES.find(x=>x.key===s);return st?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${st.color}18;color:${st.color}">${st.label}</span>`:'—'};
+  if(!filtered.length){
+    tb.innerHTML=`<tr><td colspan="9"><div style="text-align:center;padding:32px;color:var(--text-3)"><p style="font-size:14px;font-weight:500;margin-bottom:4px">Nenhum lead encontrado</p><span style="font-size:12px">Clique em "Novo lead" para adicionar</span></div></td></tr>`;
+    return;
   }
-
-  // ── REUNIÕES LIST ──
-  const rlEl=document.getElementById('crm-reunioes-list');
-  if(rlEl){
-    const recent=[...reunioesNoMes].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8);
-    const stIcon={agendada:'📅',realizada:'✅',andamento:'🔄',sim:'💰',nao:'❌',reagendada:'🔁'};
-    const stColor={agendada:'#6b7280',realizada:'#0891b2',andamento:'#7c3aed',sim:'#059669',nao:'#dc2626',reagendada:'#d97706'};
-    const stLabel={agendada:'Agendada',realizada:'Realizada',andamento:'Em andamento',sim:'Fechou 💰',nao:'Não fechou',reagendada:'Reagendada'};
-    if(!recent.length){
-      rlEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-3);font-size:13px">Nenhuma reunião neste mês. Clique em "+ Nova reunião".</div>';
-    } else {
-      rlEl.innerHTML=`<div style="display:flex;flex-direction:column;gap:8px">
-        ${recent.map(r=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-2);border-radius:10px;border:1px solid var(--border)">
-          <span style="font-size:18px">${stIcon[r.closed]||'📅'}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:700;color:var(--text)">${r.company||'—'}</div>
-            <div style="font-size:11px;color:var(--text-3)">${r.niche||'—'}${r.sdr?' · SDR: '+r.sdr:''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:11px;font-weight:700;color:${stColor[r.closed]||'#6b7280'};background:${stColor[r.closed]||'#6b7280'}18;padding:2px 8px;border-radius:8px;display:inline-block">${stLabel[r.closed]||r.closed}</div>
-            ${r.valor?`<div style="font-size:11px;font-weight:700;color:#059669;margin-top:2px">${fmt(r.valor)}</div>`:''}
-          </div>
-          <div style="font-size:11px;color:var(--text-3);flex-shrink:0">${r.date?r.date.split('-').reverse().join('/'):'—'}</div>
-          <button class="btn btn-secondary btn-sm" onclick="openReuniaoModal('${r.id}')">✏️</button>
-        </div>`).join('')}
+  const td='padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:middle;';
+  tb.innerHTML=filtered.map(l=>`<tr>
+    <td style="${td}">
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${l.nome||'—'}</div>
+      ${l.cidade?`<div style="font-size:11px;color:var(--text-3)">${l.cidade}</div>`:''}
+    </td>
+    <td style="${td}">
+      <div style="font-size:13px;color:var(--text)">${l.contato||'—'}</div>
+      ${l.whatsapp?`<a href="https://wa.me/55${(l.whatsapp||'').replace(/\D/g,'')}" target="_blank" style="font-size:11px;color:#16a34a">WhatsApp ↗</a>`:''}
+    </td>
+    <td style="${td};font-size:13px;color:var(--text)">${l.nicho||'—'}</td>
+    <td style="${td};font-size:12px;color:var(--text-2)">${ORIGEM_LABEL[l.origem]||l.origem||'—'}</td>
+    <td style="${td}">${statusBadge(l.status)}</td>
+    <td style="${td};font-size:13px;font-weight:600;color:var(--brand)">${l.valor?fmt(l.valor):'—'}</td>
+    <td style="${td};font-size:12px;color:var(--text-2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.proximo||'—'}</td>
+    <td style="${td};font-size:12px;color:var(--text-3)">${l.data_entrada?l.data_entrada.split('-').reverse().join('/'):'—'}</td>
+    <td style="${td}">
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-secondary btn-sm" onclick="openLeadModal('${l.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">×</button>
       </div>
-      ${reunioesNoMes.length>8?`<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-3)">${reunioesNoMes.length-8} reuniões não exibidas — veja em Reuniões & Pipeline</div>`:''}`;
-    }
-  }
-
-  // ── KANBAN & TABLE (pipeline view) ──
-  if(crmViewMode==='kanban'){
-    const filtered=leads.filter(l=>{
-      const sq=crmFilter.search.toLowerCase();
-      const matchSearch=!sq||l.nome?.toLowerCase().includes(sq)||l.nicho?.toLowerCase().includes(sq)||l.contato?.toLowerCase().includes(sq);
-      const matchStatus=!crmFilter.status||l.status===crmFilter.status;
-      return matchSearch&&matchStatus;
-    });
-    const kanban=document.getElementById('crm-kanban');
-    kanban.innerHTML=PIPELINE_STAGES.map(stage=>{
-      const stageLeads=leads.filter(l=>l.status===stage.key);
-      const total=stageLeads.reduce((a,l)=>a+Number(l.valor||0),0);
-      return`<div style="min-width:220px;max-width:220px;flex-shrink:0">
-        <div style="padding:10px 14px;border-radius:10px 10px 0 0;background:${stage.color};display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:12px;font-weight:700;color:#fff">${stage.label}</span>
-          <span style="font-size:11px;font-weight:700;color:rgba(255,255,255,.8);background:rgba(255,255,255,.2);padding:1px 7px;border-radius:10px">${stageLeads.length}</span>
-        </div>
-        ${total>0?`<div style="padding:5px 14px;background:${stage.color}18;border-left:3px solid ${stage.color};font-size:11px;color:${stage.color};font-weight:600">${fmt(total)}/mês est.</div>`:''}
-        <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--surface-2);border-radius:0 0 10px 10px;min-height:120px">
-          ${stageLeads.length?stageLeads.map(l=>`
-            <div onclick="openLeadModal('${l.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='${stage.color}'" onmouseout="this.style.borderColor='var(--border)'">
-              <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.nome||'—'}</div>
-              <div style="font-size:11px;color:var(--text-3);margin-bottom:6px">${l.nicho||'—'}</div>
-              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                ${l.valor?`<span style="font-size:10px;font-weight:600;color:${stage.color}">${fmt(l.valor)}</span>`:''}
-                ${l.data_proximo?`<span style="font-size:10px;color:var(--text-3)">${l.data_proximo.split('-').reverse().join('/')}</span>`:''}
-              </div>
-            </div>`).join('')
-          :`<div style="text-align:center;padding:20px 8px;color:var(--text-3);font-size:11px">Nenhum lead</div>`}
-        </div>
-      </div>`;
-    }).join('');
-    const tb=document.getElementById('crm-tbody');
-    const statusBadge=s=>{const st=PIPELINE_STAGES.find(x=>x.key===s);return st?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${st.color}18;color:${st.color}">${st.label}</span>`:'—'};
-    if(!filtered.length){
-      tb.innerHTML=`<tr><td colspan="9"><div style="text-align:center;padding:32px;color:var(--text-3)"><p style="font-size:14px;font-weight:500;margin-bottom:4px">Nenhum lead encontrado</p></div></td></tr>`;
-    } else {
-      const td='padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:middle;';
-      tb.innerHTML=filtered.map(l=>`<tr>
-        <td style="${td}"><div style="font-size:13px;font-weight:600">${l.nome||'—'}</div>${l.cidade?`<div style="font-size:11px;color:var(--text-3)">${l.cidade}</div>`:''}</td>
-        <td style="${td}"><div style="font-size:13px">${l.contato||'—'}</div>${l.whatsapp?`<a href="https://wa.me/55${(l.whatsapp||'').replace(/\D/g,'')}" target="_blank" style="font-size:11px;color:#16a34a">WhatsApp ↗</a>`:''}</td>
-        <td style="${td};font-size:13px">${l.nicho||'—'}</td>
-        <td style="${td};font-size:12px;color:var(--text-2)">${ORIGEM_LABEL[l.origem]||l.origem||'—'}</td>
-        <td style="${td}">${statusBadge(l.status)}</td>
-        <td style="${td};font-size:13px;font-weight:600;color:var(--brand)">${l.valor?fmt(l.valor):'—'}</td>
-        <td style="${td};font-size:12px;color:var(--text-2)">${l.proximo||'—'}</td>
-        <td style="${td};font-size:12px;color:var(--text-3)">${l.data_entrada?l.data_entrada.split('-').reverse().join('/'):'—'}</td>
-        <td style="${td}"><div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-sm" onclick="openLeadModal('${l.id}')">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteLead('${l.id}')">×</button>
-        </div></td>
-      </tr>`).join('');
-    }
-  }
+    </td>
+  </tr>`).join('');
 }
 
 function filterCrm(type,val){
@@ -6868,7 +6668,7 @@ function renderResDashboard(){
   const ticket=vendas>0?ret/vendas:0;
   const lucro=ret-inv;
   // compact currency - no line breaks
-  const fV=n=>{if(!n&&n!==0)return'—';const a=Math.abs(n);let s='';if(a>=1000000)s='R$ '+(a/1000000).toFixed(1).replace('.',',')+' M';else if(a>=1000)s='R$ '+a.toLocaleString('pt-BR',{maximumFractionDigits:0});else s='R$ '+a.toFixed(2).replace('.',',');return(n<0?'-':'')+s};
+  const fV=n=>{if(!n&&n!==0)return'—';const a=Math.abs(n);let s='';if(a>=1000000)s='R$ '+(a/1000000).toFixed(1).replace('.',',')+' M';else if(a>=1000)s='R$ '+a.toLocaleString('pt-BR',{maximumFractionDigits:0});else s='R$ '+a.toFixed(2).replace('.',',');return(n<0?'-':'')+s};
   const roasC=roas>=3?'#059669':roas>=1.5?'#b45309':'#dc2626';
   const msgs=[];
   if(roas>=3)msgs.push({i:'🚀',t:'ROAS Excelente',d:`${roas.toFixed(2)}x — para cada R$1 investido, R$${roas.toFixed(2)} de retorno`});
@@ -7114,8 +6914,7 @@ function renderCdCriativos(){
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           ${cr.link_word?`<a href="${cr.link_word}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#2b579a18;border:1px solid #2b579a40;border-radius:8px;font-size:12px;font-weight:600;color:#2b579a;text-decoration:none">📄 Abrir documento</a>`:''}
           ${cr.link_drive?`<a href="${cr.link_drive}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);border-radius:8px;font-size:12px;font-weight:600;color:#16a34a;text-decoration:none">📁 Drive</a>`:''}
-          <button class="btn btn-sm" onclick="editCriativo(${i})" style="margin-left:auto;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)" title="Editar">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="delCriativo(${i})">×</button>
+          <button class="btn btn-danger btn-sm" onclick="delCriativo(${i})" style="margin-left:auto">×</button>
         </div>
       </div>`).join('')}
     </div>`}`;
@@ -7138,29 +6937,6 @@ function saveCriativo(){
   const g=id=>document.getElementById(id)?.value||'';
   c.cd_criativos.unshift({titulo,tipo:g('crf-tipo'),data:g('crf-data'),status:g('crf-status')||'aguardando',link_word:g('crf-link-word'),link_drive:g('crf-link-drive'),descricao:g('crf-desc'),created_at:new Date().toISOString()});
   saveAll();closeModal('inline-modal');renderCdCriativos();showToast('Criativo adicionado');
-}
-function editCriativo(i){
-  const c=clients.find(x=>x.id===currentDetailClientId);if(!c||!c.cd_criativos[i])return;
-  const cr=c.cd_criativos[i];
-  showInlineModal('Editar criativo',`<div class="fg fg2" style="gap:12px">
-    <div class="frow" style="grid-column:span 2"><label class="lbl">Título *</label><input class="inp" id="crf-titulo" placeholder="Ex: Criativos Agosto 2026 — Campanha Leads" value="${(cr.titulo||'').replace(/"/g,'&quot;')}"/></div>
-    <div class="frow"><label class="lbl">Tipo</label><select class="inp" id="crf-tipo"><option value="briefing"${cr.tipo==='briefing'?' selected':''}>Briefing</option><option value="solicitacao"${cr.tipo==='solicitacao'?' selected':''}>Solicitação de criativos</option><option value="aprovacao"${cr.tipo==='aprovacao'?' selected':''}>Aprovação do cliente</option><option value="roteiro"${cr.tipo==='roteiro'?' selected':''}>Roteiro de vídeo</option><option value="copy"${cr.tipo==='copy'?' selected':''}>Copy dos anúncios</option><option value="outro"${cr.tipo==='outro'?' selected':''}>Outro</option></select></div>
-    <div class="frow"><label class="lbl">Data</label><input class="inp" type="date" id="crf-data" value="${cr.data||''}"/></div>
-    <div class="frow"><label class="lbl">Status</label><select class="inp" id="crf-status"><option value="aguardando"${cr.status==='aguardando'?' selected':''}>Aguardando aprovação</option><option value="aprovado"${cr.status==='aprovado'?' selected':''}>Aprovado ✓</option><option value="revisao"${cr.status==='revisao'?' selected':''}>Em revisão</option><option value="reprovado"${cr.status==='reprovado'?' selected':''}>Reprovado</option></select></div>
-    <div class="frow" style="grid-column:span 2"><label class="lbl">Link do documento (Word/Docs)</label><input class="inp" id="crf-link-word" placeholder="https://docs.google.com/... ou link Word Online" value="${(cr.link_word||'').replace(/"/g,'&quot;')}"/></div>
-    <div class="frow" style="grid-column:span 2"><label class="lbl">Link do Drive (pasta dos criativos)</label><input class="inp" id="crf-link-drive" placeholder="https://drive.google.com/..." value="${(cr.link_drive||'').replace(/"/g,'&quot;')}"/></div>
-    <div class="frow" style="grid-column:span 2"><label class="lbl">Descrição</label><textarea class="inp" id="crf-desc" rows="3" placeholder="Descreva o briefing, quantos criativos foram solicitados, formatos...">${cr.descricao||''}</textarea></div>
-  </div>`,()=>saveEditCriativo(i),640);
-}
-function saveEditCriativo(i){
-  const c=clients.find(x=>x.id===currentDetailClientId);if(!c||!c.cd_criativos[i])return;
-  const titulo=document.getElementById('crf-titulo')?.value.trim();if(!titulo){showToast('Título obrigatório');return}
-  const g=id=>document.getElementById(id)?.value||'';
-  const cr=c.cd_criativos[i];
-  cr.titulo=titulo;cr.tipo=g('crf-tipo');cr.data=g('crf-data');cr.status=g('crf-status')||'aguardando';
-  cr.link_word=g('crf-link-word');cr.link_drive=g('crf-link-drive');cr.descricao=g('crf-desc');
-  cr.updated_at=new Date().toISOString();
-  saveAll();closeModal('inline-modal');renderCdCriativos();showToast('Criativo atualizado');
 }
 function delCriativo(i){
   deleteCallback=()=>{const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;c.cd_criativos.splice(i,1);saveAll();renderCdCriativos();closeModal('confirm-modal')};
@@ -7424,213 +7200,6 @@ function tryRestoreSession(){
     document.getElementById('login-page').style.display='flex';
   }
 })();
-
-
-// ══════════════════════════════════════════════
-// SISTEMA DE LEMBRETES
-// ══════════════════════════════════════════════
-
-/* ---------- renderização da lista de lembretes (admin) ---------- */
-function renderLembretes(){
-  const el=document.getElementById('lembretes-lista');
-  if(!el)return;
-  if(!lembretes||!lembretes.length){
-    el.innerHTML='<div style="text-align:center;color:var(--text-3);font-size:13px;padding:20px 0">Nenhum lembrete criado ainda. Clique em "+ Novo lembrete" para começar.</div>';
-    return;
-  }
-  const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  el.innerHTML=lembretes.map((l,i)=>`
-    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:${l.ativo?'var(--surface)':'var(--surface-2)'}">
-      <div style="margin-top:2px">
-        <label class="toggle-wrap" style="cursor:pointer" title="${l.ativo?'Desativar':'Ativar'}">
-          <input type="checkbox" ${l.ativo?'checked':''} onchange="toggleLembrete(${i})" style="display:none"/>
-          <div style="width:34px;height:20px;border-radius:10px;background:${l.ativo?'#059669':'var(--border)'};position:relative;transition:.2s">
-            <div style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${l.ativo?'16px':'2px'};transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
-          </div>
-        </label>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:${l.ativo?'var(--text)':'var(--text-3)'}">${l.titulo}</div>
-        <div style="font-size:12px;color:var(--text-2);margin-top:2px">${l.mensagem}</div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:4px">
-          🕐 ${l.hora} &nbsp;·&nbsp; 📅 ${l.dia_semana==='diario'?'Todo dia':l.dia_semana==='util'?'Dias úteis (Seg–Sex)':dias[+l.dia_semana]+'-feira'}
-          ${l.ativo?'<span style="color:#059669;margin-left:8px">● Ativo</span>':'<span style="color:var(--text-3);margin-left:8px">○ Inativo</span>'}
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-sm" onclick="editLembrete(${i})" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)" title="Editar">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="delLembrete(${i})" title="Excluir">×</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-/* ---------- modal novo/editar lembrete ---------- */
-function abrirModalNovoLembrete(idx){
-  const editMode=idx!==undefined;
-  const l=editMode?lembretes[idx]:{titulo:'',mensagem:'',dia_semana:'1',hora:'09:00',ativo:true};
-  const dias=[
-    {v:'diario',t:'Todo dia'},
-    {v:'util',t:'Dias úteis (Seg–Sex)'},
-    {v:'0',t:'Domingo'},
-    {v:'1',t:'Segunda-feira'},
-    {v:'2',t:'Terça-feira'},
-    {v:'3',t:'Quarta-feira'},
-    {v:'4',t:'Quinta-feira'},
-    {v:'5',t:'Sexta-feira'},
-    {v:'6',t:'Sábado'},
-  ];
-  showInlineModal(
-    editMode?'Editar lembrete':'Novo lembrete',
-    `<div class="fg fg1" style="gap:14px">
-      <div class="frow"><label class="lbl">Título do lembrete *</label>
-        <input class="inp" id="lem-titulo" placeholder="Ex: Enviar relatório" value="${(l.titulo||'').replace(/"/g,'&quot;')}"/>
-      </div>
-      <div class="frow"><label class="lbl">Mensagem que aparecerá na tela *</label>
-        <textarea class="inp" id="lem-msg" rows="2" placeholder="Ex: Lembre-se de enviar o relatório mensal para todos os clientes!">${l.mensagem||''}</textarea>
-      </div>
-      <div class="frow"><label class="lbl">Dia da semana</label>
-        <select class="inp" id="lem-dia">
-          ${dias.map(d=>`<option value="${d.v}" ${l.dia_semana==d.v?'selected':''}>${d.t}</option>`).join('')}
-        </select>
-      </div>
-      <div class="frow"><label class="lbl">Horário</label>
-        <input class="inp" type="time" id="lem-hora" value="${l.hora||'09:00'}"/>
-      </div>
-      <div class="frow" style="flex-direction:row;align-items:center;gap:10px">
-        <input type="checkbox" id="lem-ativo" ${l.ativo!==false?'checked':''} style="width:16px;height:16px;accent-color:var(--primary)"/>
-        <label for="lem-ativo" class="lbl" style="margin:0;cursor:pointer">Ativo (gestoras recebem a notificação)</label>
-      </div>
-    </div>`,
-    ()=>salvarLembrete(editMode?idx:null),
-    520
-  );
-}
-function editLembrete(i){abrirModalNovoLembrete(i);}
-
-function salvarLembrete(idx){
-  const titulo=document.getElementById('lem-titulo')?.value.trim();
-  const msg=document.getElementById('lem-msg')?.value.trim();
-  if(!titulo||!msg){showToast('Título e mensagem são obrigatórios');return;}
-  const obj={
-    id: (idx!==null&&lembretes[idx])?lembretes[idx].id:('lem_'+Date.now()),
-    titulo,
-    mensagem:msg,
-    dia_semana:document.getElementById('lem-dia')?.value||'1',
-    hora:document.getElementById('lem-hora')?.value||'09:00',
-    ativo:document.getElementById('lem-ativo')?.checked!==false,
-    criado_em:(idx!==null&&lembretes[idx])?lembretes[idx].criado_em:new Date().toISOString(),
-  };
-  if(idx!==null&&lembretes[idx]){lembretes[idx]=obj;}else{lembretes.push(obj);}
-  saveAll();
-  closeModal('inline-modal');
-  renderLembretes();
-  showToast(idx!==null?'Lembrete atualizado':'Lembrete criado! 🔔');
-}
-
-function delLembrete(i){
-  if(!confirm('Excluir este lembrete?'))return;
-  lembretes.splice(i,1);
-  saveAll();
-  renderLembretes();
-  showToast('Lembrete removido');
-}
-
-function toggleLembrete(i){
-  if(!lembretes[i])return;
-  lembretes[i].ativo=!lembretes[i].ativo;
-  saveAll();
-  renderLembretes();
-  showToast(lembretes[i].ativo?'Lembrete ativado':'Lembrete pausado');
-}
-
-/* ---------- motor de notificações (roda 1× por minuto) ---------- */
-// Rastreia quais lembretes já foram mostrados nessa sessão (dia+hora+id)
-const _lembretesMostrados=new Set(JSON.parse(sessionStorage.getItem('_lemMostrados')||'[]'));
-function _salvarMostrados(){try{sessionStorage.setItem('_lemMostrados',JSON.stringify([..._lembretesMostrados]));}catch(e){}}
-
-function checarLembretes(){
-  // Só notifica gestoras (admins criam, SDR não vê nada)
-  if(!currentSystemUser||currentSystemUser.level!=='gestor')return;
-  if(!lembretes||!lembretes.length)return;
-
-  const agora=new Date();
-  const minAtual=agora.getHours().toString().padStart(2,'0')+':'+agora.getMinutes().toString().padStart(2,'0');
-  const diaAtual=agora.getDay(); // 0=Dom, 1=Seg... 6=Sáb
-
-  lembretes.forEach(l=>{
-    if(!l.ativo)return;
-    if(l.hora!==minAtual)return; // só no minuto exato
-
-    // Verificar dia
-    let dispara=false;
-    if(l.dia_semana==='diario'){dispara=true;}
-    else if(l.dia_semana==='util'){dispara=(diaAtual>=1&&diaAtual<=5);}
-    else{dispara=(+l.dia_semana===diaAtual);}
-
-    if(!dispara)return;
-
-    // Chave única: id + data + hora para não repetir
-    const chave=l.id+'_'+agora.toDateString()+'_'+minAtual;
-    if(_lembretesMostrados.has(chave))return;
-
-    _lembretesMostrados.add(chave);
-    _salvarMostrados();
-    mostrarNotificacaoLembrete(l);
-  });
-}
-
-function mostrarNotificacaoLembrete(l){
-  // Remove notificação anterior se existir
-  const old=document.getElementById('lembrete-popup-'+l.id);
-  if(old)old.remove();
-
-  const popup=document.createElement('div');
-  popup.id='lembrete-popup-'+l.id;
-  popup.style.cssText=`
-    position:fixed;bottom:24px;right:24px;z-index:9999;
-    background:var(--surface);border:1.5px solid var(--primary);border-radius:14px;
-    padding:16px 18px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.18);
-    display:flex;flex-direction:column;gap:8px;
-    animation:slideInRight .35s cubic-bezier(.22,1,.36,1);
-  `;
-  popup.innerHTML=`
-    <div style="display:flex;align-items:flex-start;gap:10px">
-      <div style="font-size:22px;line-height:1">🔔</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">${l.titulo}</div>
-        <div style="font-size:12px;color:var(--text-2);line-height:1.5">${l.mensagem}</div>
-      </div>
-      <button onclick="this.closest('[id^=lembrete-popup]').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;line-height:1;padding:0;flex-shrink:0" title="Fechar">×</button>
-    </div>
-    <div style="font-size:10px;color:var(--text-3);text-align:right">${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
-  `;
-
-  document.body.appendChild(popup);
-
-  // Auto-fechar após 12 segundos
-  setTimeout(()=>{
-    if(popup.parentNode){
-      popup.style.animation='fadeOut .4s ease forwards';
-      setTimeout(()=>popup.remove(),400);
-    }
-  },12000);
-}
-
-// Adicionar animação CSS
-(function(){
-  const s=document.createElement('style');
-  s.textContent=`
-    @keyframes slideInRight{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
-    @keyframes fadeOut{from{opacity:1}to{opacity:0;transform:translateY(10px)}}
-  `;
-  document.head.appendChild(s);
-})();
-
-// Iniciar verificação a cada 60 segundos
-setInterval(checarLembretes,60000);
-// Checar imediatamente ao logar (com delay de 10s para dar tempo de inicializar)
-setTimeout(checarLembretes,10000);
 
 </script>
 </body>
