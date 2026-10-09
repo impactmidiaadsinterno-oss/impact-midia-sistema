@@ -6668,7 +6668,7 @@ function renderResDashboard(){
   const ticket=vendas>0?ret/vendas:0;
   const lucro=ret-inv;
   // compact currency - no line breaks
-  const fV=n=>{if(!n&&n!==0)return'—';const a=Math.abs(n);let s='';if(a>=1000000)s='R$ '+(a/1000000).toFixed(1).replace('.',',')+' M';else if(a>=1000)s='R$ '+a.toLocaleString('pt-BR',{maximumFractionDigits:0});else s='R$ '+a.toFixed(2).replace('.',',');return(n<0?'-':'')+s};
+  const fV=n=>{if(!n&&n!==0)return'—';const a=Math.abs(n);let s='';if(a>=1000000)s='R$ '+(a/1000000).toFixed(1).replace('.',',')+' M';else if(a>=1000)s='R$ '+a.toLocaleString('pt-BR',{maximumFractionDigits:0});else s='R$ '+a.toFixed(2).replace('.',',');return(n<0?'-':'')+s};
   const roasC=roas>=3?'#059669':roas>=1.5?'#b45309':'#dc2626';
   const msgs=[];
   if(roas>=3)msgs.push({i:'🚀',t:'ROAS Excelente',d:`${roas.toFixed(2)}x — para cada R$1 investido, R$${roas.toFixed(2)} de retorno`});
