@@ -557,6 +557,10 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       <button class="nav-item admin-only" id="nav-vendas-pontuais" onclick="nav('vendas-pontuais',this)">
         <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Vendas Pontuais
       </button>
+      <div class="nav-sep admin-only">Google Ads</div>
+      <button class="nav-item admin-only" id="nav-google-ads" onclick="nav('google-ads',this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Google Ads
+      </button>
       <div class="nav-sep admin-only">Sistema</div>
       <button class="nav-item admin-only" id="nav-usuarios" onclick="nav('usuarios',this)">
         <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Usuários
@@ -2074,6 +2078,10 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
 <!-- ══════════════════════════════════════════════════════════════
      CRM / LEADS — SDR only
 ══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-google-ads" style="padding:0;display:flex;flex-direction:column">
+  <iframe id="google-ads-frame" src="https://adwatch-dashboard.vercel.app/dashboard" style="flex:1;width:100%;border:none;height:100%" allow="fullscreen"></iframe>
+</div>
+
 <div class="page" id="page-crm" style="padding-bottom:60px">
   <div class="sh">
     <div><div class="st">CRM — SDR</div><div class="ss" id="crm-sub">Pipeline de prospecção</div></div>
@@ -2808,7 +2816,7 @@ function nav(p,el){
   const pg=document.getElementById('page-'+p);if(pg)pg.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',clientes:'Clientes','gestor-dashboard':'Minha carteira','cliente-detalhe':'Detalhe do cliente',usuarios:'Usuários',cobrancas:'Cobranças',financeiro:'Financeiro',metas:'Metas',reunioes:'Reuniões',crescimento:'Crescimento','vendas-pontuais':'Vendas Pontuais',configuracoes:'Configurações',crm:'CRM — Gestão de Leads'};
+  const titles={dashboard:'Dashboard',clientes:'Clientes','gestor-dashboard':'Minha carteira','cliente-detalhe':'Detalhe do cliente',usuarios:'Usuários',cobrancas:'Cobranças',financeiro:'Financeiro',metas:'Metas',reunioes:'Reuniões',crescimento:'Crescimento','vendas-pontuais':'Vendas Pontuais',configuracoes:'Configurações',crm:'CRM — Gestão de Leads','google-ads':'Google Ads — Resultados'};
   document.getElementById('page-title').textContent=titles[p]||p;
   if(p==='dashboard')renderDashboard();
   if(p==='clientes')renderClients();
