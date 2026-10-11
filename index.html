@@ -2818,7 +2818,7 @@ const pageTitles={dashboard:'Dashboard',clientes:'Clientes',cobrancas:'Cobrança
 function nav(p,el){
   
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
-  const pg=document.getElementById('page-'+p);if(pg)pg.classList.add('active');
+  const pg=document.getElementById('page-'+p);if(pg){pg.classList.add('active');pg.scrollTop=0;pg.scrollIntoView({block:'start'});}
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
   if(el)el.classList.add('active');
   const titles={dashboard:'Dashboard',clientes:'Clientes','gestor-dashboard':'Minha carteira','cliente-detalhe':'Detalhe do cliente',usuarios:'Usuários',cobrancas:'Cobranças',financeiro:'Financeiro',metas:'Metas',reunioes:'Reuniões',crescimento:'Crescimento','vendas-pontuais':'Vendas Pontuais',configuracoes:'Configurações',crm:'CRM — Gestão de Leads','google-ads':'Google Ads — Resultados'};
