@@ -5948,11 +5948,11 @@ function renderCdIdentificacao(){
   document.getElementById('cd-campaign-info').innerHTML=[
     {l:'Plataforma',v:c.platform?`<span class="badge b-blue">${{meta:'Meta Ads',google:'Google Ads',ambos:'Meta + Google'}[c.platform]||c.platform}</span>`:'—'},
     canSeeValue?{l:'Valor do serviço',v:canSeeValue&&c.monthly_value?`<strong style="color:var(--brand)">${fmt(c.monthly_value)}</strong>`:'—'}:null,
-    canSeeValue?{l:'Verba em anúncios',v:c.ad_budget?`<strong style="color:#7c3aed">${fmt(c.ad_budget)}/mês</strong>`:'—'}:null,
+    {l:'Verba em anúncios',v:c.ad_budget?`<strong style="color:#7c3aed">${fmt(c.ad_budget)}/mês</strong>`:'—'},
     canSeeValue?{l:'LTV (mensalidades)',v:(()=>{const paid=revenues.filter(r=>r.client_id===c.id&&r.status==='pago'&&(r.tipo==='mensalidade'||!r.tipo));const total=paid.reduce((a,r)=>a+Number(r.amount||0),0);return total>0?`<strong>${fmt(total)}</strong>`:'—'})()}:null,
     canSeeValue?{l:'Vendas pontuais',v:(()=>{const vp=revenues.filter(r=>r.client_id===c.id&&r.tipo==='venda_pontual');const total=vp.reduce((a,r)=>a+Number(r.amount||0),0);return total>0?`<strong style="color:#059669">${fmt(total)}</strong>`:'—'})()}:null,
     canSeeValue?{l:'LTV total',v:(()=>{const all=revenues.filter(r=>r.client_id===c.id&&r.status==='pago');const total=all.reduce((a,r)=>a+Number(r.amount||0),0);return total>0?`<strong style="color:var(--brand);font-size:15px">${fmt(total)}</strong>`:'—'})()}:null,
-    canSeeValue?{l:'Meta de CPL',v:c.meta_cpl||'—'}:null,
+    {l:'Meta de CPL',v:c.meta_cpl||'—'},
   ].filter(Boolean).map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-2)">${x.l}</span><span style="font-size:13px;font-weight:500">${x.v}</span></div>`).join('');
 
   // Semaforo
