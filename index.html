@@ -6213,7 +6213,7 @@ function saveCdEscopo(){
 function renderCdEstrategia(){
   const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
   const e=c.cd_estrategia||{};
-  const hasData=e.foco||e.oferta||e.g_tipo||e.m_obj;
+  const hasData=e.foco||e.oferta||e.publico||e.diferencial||e.g_tipo||e.g_ncamp||e.m_obj||e.m_camp||e.obs;
   if(!hasData){
     document.getElementById('cd-estrategia-body').innerHTML=`
       <div style="text-align:center;padding:60px 24px;color:var(--text-3)">
@@ -6230,7 +6230,7 @@ function renderCdEstrategia(){
     mensagens:'Mensagens',geração_leads:'Geração de leads',vendas:'Vendas/Conversões',
     catalogo:'Vendas pelo catálogo',visitas_loja:'Visitas à loja',app:'Promoção de app',leads:'Leads',
   };
-  const hasGoogle=e.g_tipo&&e.g_tipo!=='';
+  const hasGoogle=(e.g_tipo&&e.g_tipo!=='')||(+e.g_ncamp>0)||(+e.g_ngrupos>0)||!!(e.g_grupos_palavras&&e.g_grupos_palavras.length);
   const hasMeta=e.m_obj&&e.m_obj!=='';
 
   const clearEstrategia=()=>{
@@ -6592,7 +6592,7 @@ function openCdEstrategiaModal(){
   set('cde-m-obj',e.m_obj);set('cde-m-camp',e.m_camp);set('cde-m-nconj',e.m_nconj);
   set('cde-m-nanuncios',e.m_nanuncios);set('cde-m-seg',e.m_seg);set('cde-m-obs',e.m_obs);set('cde-obs',e.obs);
   openModal('cd-estrategia-modal');
-  setTimeout(renderGruposPalavrasEditor,50);
+  setTimeout(renderGruposPalavrasEditor,150);
 }
 function gerarNomenclaturaGoogle(c, e){
   if(!e.g_tipo||!c) return '';
@@ -6647,11 +6647,11 @@ function gerarNomenclaturaMeta(c, e){
 function saveCdEstrategia(){
   const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
   const g=id=>document.getElementById(id)?.value||'';
-  const nGrupos=+g('cde-g-ngrupos')||0;
+  const nGrupos=+g('cde-g-ngrupos')||1;
   const grupos=Array.from({length:Math.min(nGrupos,10)},(_,i)=>document.getElementById(`cde-grupo-${i}`)?.value||'');
   c.cd_estrategia={
     foco:g('cde-foco'),oferta:g('cde-oferta'),publico:g('cde-publico'),diferencial:g('cde-diferencial'),
-    g_tipo:g('cde-g-tipo'),g_ncamp:+g('cde-g-ncamp')||0,g_ngrupos:nGrupos,
+    g_tipo:g('cde-g-tipo'),g_ncamp:+g('cde-g-ncamp')||1,g_ngrupos:nGrupos||1,
     g_verba:+g('cde-g-verba')||0,g_localizacoes:g('cde-g-localizacoes'),g_grupos_palavras:grupos,g_obs:g('cde-g-obs'),
     m_obj:g('cde-m-obj'),m_camp:+g('cde-m-camp')||0,m_nconj:+g('cde-m-nconj')||0,
     m_nanuncios:+g('cde-m-nanuncios')||0,m_seg:g('cde-m-seg'),m_obs:g('cde-m-obs'),obs:g('cde-obs'),
