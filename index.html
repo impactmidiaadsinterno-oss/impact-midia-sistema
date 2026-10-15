@@ -1964,10 +1964,11 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
           <option value="local">Campanha local (GMN)</option>
         </select>
       </div>
-      <div class="fgroup"><label class="lbl">Nº de campanhas</label><input class="inp" id="cde-g-ncamp" type="number" placeholder="1"/></div>
-      <div class="fgroup"><label class="lbl">Nº de grupos de anúncio</label><input class="inp" id="cde-g-ngrupos" type="number" placeholder="2"/></div>
+      <div class="fgroup"><label class="lbl">Nº de campanhas</label><input class="inp" id="cde-g-ncamp" type="number" placeholder="1" oninput="renderGruposPalavrasEditor()"/></div>
+      <div class="fgroup"><label class="lbl">Nº de grupos de anúncio</label><input class="inp" id="cde-g-ngrupos" type="number" placeholder="2" oninput="renderGruposPalavrasEditor()"/></div>
       <div class="fgroup"><label class="lbl">Verba diária (R$)</label><input class="inp" id="cde-g-verba" type="number" placeholder="100"/></div>
-      <div class="fgroup" style="grid-column:span 2"><label class="lbl">Estrutura de palavras-chave / grupos</label><textarea class="inp" id="cde-g-palavras" rows="3" placeholder="Grupo 1: palavras gerais&#10;Grupo 2: serviços específicos&#10;..."></textarea></div>
+      <div class="fgroup" style="grid-column:span 2"><label class="lbl">Localizações (Visão geral)</label><input class="inp" id="cde-g-localizacoes" placeholder="Ex: Goiânia, Aparecida de Goiânia, Trindade"/><div style="font-size:10px;color:var(--text-3);margin-top:3px">Separe por vírgula</div></div>
+      <div class="fgroup" style="grid-column:span 2"><label class="lbl">Palavras-chave por grupo de anúncio</label><div id="cde-g-grupos-editor" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div></div>
       <div class="fgroup" style="grid-column:span 2"><label class="lbl">Observações Google Ads</label><textarea class="inp" id="cde-g-obs" rows="2" placeholder="Horários, estratégia de lance, particularidades..."></textarea></div>
     </div>
     <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">Meta Ads</div>
@@ -5806,6 +5807,38 @@ function renderCdResumo(){
         ${r.obs_gerais?`<div><div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Obs. gerais</div><div style="font-size:13px;line-height:1.65;white-space:pre-wrap">${r.obs_gerais}</div></div>`:''}
       </div>
     </div>
+    <!-- PRÓXIMA REUNIÃO -->
+    ${(()=>{
+      const reuniao=c.cd_proxima_reuniao;
+      const motivo=c.cd_proxima_acao||'';
+      if(reuniao){
+        const [y,m,d]=reuniao.split('-');
+        const dataFmt=`${d}/${m}/${y}`;
+        const hoje=new Date();hoje.setHours(0,0,0,0);
+        const dataR=new Date(reuniao+'T00:00:00');
+        const diff=Math.round((dataR-hoje)/(1000*60*60*24));
+        const urgencia=diff<0?{bg:'rgba(220,38,38,.08)',border:'rgba(220,38,38,.3)',cor:'#dc2626',label:'Reunião vencida'}:diff===0?{bg:'rgba(234,179,8,.1)',border:'rgba(234,179,8,.4)',cor:'#ca8a04',label:'Hoje!'}:diff<=3?{bg:'rgba(234,179,8,.07)',border:'rgba(234,179,8,.3)',cor:'#d97706',label:`Em ${diff} dia${diff>1?'s':''}`}:{bg:'rgba(1,97,255,.06)',border:'rgba(1,97,255,.2)',cor:'var(--brand)',label:`Em ${diff} dias`};
+        return `<div style="background:${urgencia.bg};border:1.5px solid ${urgencia.border};border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
+          <div style="font-size:32px">📅</div>
+          <div style="flex:1">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:${urgencia.cor};margin-bottom:3px">Próxima reunião — ${urgencia.label}</div>
+            <div style="font-size:20px;font-weight:800;color:var(--text)">${dataFmt}</div>
+            ${motivo?`<div style="font-size:13px;color:var(--text-2);margin-top:4px">📌 ${motivo}</div>`:''}
+          </div>
+          <button onclick="switchClientTab('identificacao',document.querySelector('.client-tab[onclick*=identificacao]'))" style="background:${urgencia.cor==='var(--brand)'?'var(--brand)':'rgba(220,38,38,.12)'};color:${urgencia.cor==='var(--brand)'?'#fff':urgencia.cor};border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">Editar</button>
+        </div>`;
+      } else {
+        return `<div style="background:rgba(107,114,128,.06);border:1.5px dashed rgba(107,114,128,.3);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
+          <div style="font-size:32px">📅</div>
+          <div style="flex:1">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:3px">Próxima reunião</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text-3)">Nenhuma data agendada</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">Agende uma reunião com este cliente</div>
+          </div>
+          <button onclick="switchClientTab('identificacao',document.querySelector('.client-tab[onclick*=identificacao]'))" style="background:var(--brand);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">📅 Agendar</button>
+        </div>`;
+      }
+    })()}
     <!-- PENDÊNCIAS PARA O HEAD -->
     <div class="card cp">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px;flex-wrap:wrap">
@@ -6128,7 +6161,8 @@ function renderCdEstrategia(){
   if(hasGoogle){
     const nCamp=e.g_ncamp||1;
     const nGrupos=e.g_ngrupos||1;
-    const palavrasList=(e.g_palavras||'').split('\n').filter(Boolean);
+    const gruposPalavras=e.g_grupos_palavras||[];
+    const locais=(e.g_localizacoes||'').split(',').map(l=>l.trim()).filter(Boolean);
     googleMapHtml=`
       <div style="background:rgba(234,67,53,.05);border:1px solid rgba(234,67,53,.18);border-radius:var(--radius-lg);padding:18px 20px 20px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
@@ -6143,19 +6177,23 @@ function renderCdEstrategia(){
             <button onclick="openCdEstrategiaModal()" style="background:rgba(234,67,53,.1);border:1px solid rgba(234,67,53,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;color:#ea4335;cursor:pointer;font-family:var(--font)">Editar</button>
           </div>
         </div>
+        ${locais.length?`<div style="margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">📍 Localizações</div><div style="display:flex;flex-wrap:wrap;gap:6px">${locais.map(l=>`<span style="background:rgba(234,67,53,.08);border:1px solid rgba(234,67,53,.2);color:#ea4335;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">📍 ${l}</span>`).join('')}</div></div>`:''}
         <div style="display:flex;flex-direction:column;gap:10px;padding-left:14px;border-left:2px solid rgba(234,67,53,.25)">
-          ${Array.from({length:Math.min(nCamp,4)},(_,ci)=>`
+          ${Array.from({length:Math.min(nCamp,8)},(_,ci)=>`
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 16px">
               <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px">
                 📁 <span>Campanha ${ci+1}</span>
               </div>
               <div style="display:flex;flex-direction:column;gap:6px;padding-left:12px;border-left:2px solid var(--border)">
-                ${Array.from({length:Math.min(nGrupos,8)},(_,gi)=>{
-                  const kw=palavrasList[gi]||`Grupo de anúncio ${gi+1}`;
-                  return`<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface-2);border-radius:7px">
-                    <span style="font-size:13px">📂</span>
-                    <span style="font-size:12px;font-weight:500;color:var(--text);flex:1">${kw}</span>
-                    <span style="font-size:10px;color:var(--text-3);background:var(--surface);padding:1px 7px;border-radius:8px">Grupo de anúncio</span>
+                ${Array.from({length:Math.min(nGrupos,10)},(_,gi)=>{
+                  const kw=gruposPalavras[gi]||`Grupo de anúncio ${gi+1}`;
+                  return`<div style="padding:8px 12px;background:var(--surface-2);border-radius:7px">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:${kw&&kw!==('Grupo de anúncio '+(gi+1))?'5px':'0'}">
+                      <span style="font-size:13px">📂</span>
+                      <span style="font-size:12px;font-weight:600;color:var(--text);flex:1">Grupo ${gi+1}</span>
+                      <span style="font-size:10px;color:var(--text-3);background:var(--surface);padding:1px 7px;border-radius:8px">Grupo de anúncio</span>
+                    </div>
+                    ${kw&&kw!==('Grupo de anúncio '+(gi+1))?`<div style="font-size:11px;color:var(--text-2);padding:5px 8px;background:rgba(234,67,53,.05);border-radius:5px;border-left:2px solid rgba(234,67,53,.3);line-height:1.6;white-space:pre-wrap">🔑 ${kw}</div>`:''}
                   </div>`;
                 }).join('')}
               </div>
@@ -6235,6 +6273,7 @@ function renderCdEstrategia(){
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:5px">${x.l}</div>
             <div style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.65">${x.v}</div>
           </div>`).join('')}
+        ${e.g_localizacoes?(()=>{const locs=e.g_localizacoes.split(',').map(l=>l.trim()).filter(Boolean);return locs.length?`<div style="grid-column:span 2"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:7px">📍 Localizações</div><div style="display:flex;flex-wrap:wrap;gap:6px">${locs.map(l=>`<span style="background:rgba(1,97,255,.08);border:1px solid rgba(1,97,255,.2);color:var(--brand);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">📍 ${l}</span>`).join('')}</div></div>`:''})():''}
       </div>
     </div>
     <!-- ESTRUTURA DAS CAMPANHAS -->
@@ -6299,16 +6338,29 @@ function toggleNotificarHead(){
     saveAll();renderCdEstrategia();showToast('✅ Head de Tráfego notificado!',3000);
   }
 }
+function renderGruposPalavrasEditor(){
+  const nGrupos=+document.getElementById('cde-g-ngrupos')?.value||1;
+  const c=clients.find(x=>x.id===currentDetailClientId);
+  const e=c?.cd_estrategia||{};
+  const grupos=e.g_grupos_palavras||[];
+  const cont=document.getElementById('cde-g-grupos-editor');if(!cont)return;
+  cont.innerHTML=Array.from({length:Math.min(nGrupos,10)},(_,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--text-3);padding-top:10px;min-width:64px">Grupo ${i+1}</div>
+      <textarea class="inp" id="cde-grupo-${i}" rows="2" placeholder="Ex: clínica odontológica, dentista, implante dental..." style="flex:1">${grupos[i]||''}</textarea>
+    </div>`).join('');
+}
 function openCdEstrategiaModal(){
   const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
   const e=c.cd_estrategia||{};
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||''};
   set('cde-foco',e.foco);set('cde-oferta',e.oferta);set('cde-publico',e.publico);set('cde-diferencial',e.diferencial);
   set('cde-g-tipo',e.g_tipo);set('cde-g-ncamp',e.g_ncamp);set('cde-g-ngrupos',e.g_ngrupos);
-  set('cde-g-verba',e.g_verba);set('cde-g-palavras',e.g_palavras);set('cde-g-obs',e.g_obs);
+  set('cde-g-verba',e.g_verba);set('cde-g-localizacoes',e.g_localizacoes);set('cde-g-obs',e.g_obs);
   set('cde-m-obj',e.m_obj);set('cde-m-camp',e.m_camp);set('cde-m-nconj',e.m_nconj);
   set('cde-m-nanuncios',e.m_nanuncios);set('cde-m-seg',e.m_seg);set('cde-m-obs',e.m_obs);set('cde-obs',e.obs);
   openModal('cd-estrategia-modal');
+  setTimeout(renderGruposPalavrasEditor,50);
 }
 function gerarNomenclaturaGoogle(c, e){
   if(!e.g_tipo||!c) return '';
@@ -6363,12 +6415,15 @@ function gerarNomenclaturaMeta(c, e){
 function saveCdEstrategia(){
   const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
   const g=id=>document.getElementById(id)?.value||'';
+  const nGrupos=+g('cde-g-ngrupos')||0;
+  const grupos=Array.from({length:Math.min(nGrupos,10)},(_,i)=>document.getElementById(`cde-grupo-${i}`)?.value||'');
   c.cd_estrategia={
     foco:g('cde-foco'),oferta:g('cde-oferta'),publico:g('cde-publico'),diferencial:g('cde-diferencial'),
-    g_tipo:g('cde-g-tipo'),g_ncamp:+g('cde-g-ncamp')||0,g_ngrupos:+g('cde-g-ngrupos')||0,
-    g_verba:+g('cde-g-verba')||0,g_palavras:g('cde-g-palavras'),g_obs:g('cde-g-obs'),
+    g_tipo:g('cde-g-tipo'),g_ncamp:+g('cde-g-ncamp')||0,g_ngrupos:nGrupos,
+    g_verba:+g('cde-g-verba')||0,g_localizacoes:g('cde-g-localizacoes'),g_grupos_palavras:grupos,g_obs:g('cde-g-obs'),
     m_obj:g('cde-m-obj'),m_camp:+g('cde-m-camp')||0,m_nconj:+g('cde-m-nconj')||0,
     m_nanuncios:+g('cde-m-nanuncios')||0,m_seg:g('cde-m-seg'),m_obs:g('cde-m-obs'),obs:g('cde-obs'),
+    notificar_head:c.cd_estrategia?.notificar_head,notificar_head_at:c.cd_estrategia?.notificar_head_at,
   };
   saveAll();closeModal('cd-estrategia-modal');renderCdEstrategia();showToast('Estratégia salva com sucesso');
 }
