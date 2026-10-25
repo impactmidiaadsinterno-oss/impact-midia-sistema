@@ -3136,6 +3136,50 @@ function renderAlerts(nowM, now){
     </div>`;
   }
 
+  // ── REUNIÕES AGENDADAS PELAS GESTORAS (só admin vê) ──
+  if(currentSystemUser?.level==='admin'){
+    const today3=new Date();today3.setHours(0,0,0,0);
+    const reunioesHoje=[];
+    const reunioesBreve=[];
+    const reunioesAtrasadas=[];
+    clients.filter(c=>c.status==='ativo'&&c.cd_proxima_reuniao).forEach(c=>{
+      const dataR=new Date(c.cd_proxima_reuniao+'T00:00:00');
+      dataR.setHours(0,0,0,0);
+      const diff=Math.round((dataR-today3)/(1000*60*60*24));
+      const gestor=c.manager||c.manager_name||'—';
+      if(diff<0) reunioesAtrasadas.push({c,diff,gestor});
+      else if(diff===0) reunioesHoje.push({c,diff,gestor});
+      else if(diff<=7) reunioesBreve.push({c,diff,gestor});
+    });
+    // Atrasadas (passaram sem ser marcadas)
+    if(reunioesAtrasadas.length){
+      const names=reunioesAtrasadas.slice(0,3).map(x=>`${x.c.company_name} (${x.c.cd_proxima_reuniao.split('-').reverse().join('/')})`).join(', ')+(reunioesAtrasadas.length>3?` e mais ${reunioesAtrasadas.length-3}`:'');
+      html+=`<div class="alert-item" style="background:rgba(220,38,38,.07);border-left:3px solid #dc2626;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="#dc2626" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span style="color:#dc2626"><strong>${reunioesAtrasadas.length} reunião${reunioesAtrasadas.length>1?'ões':''} sem retorno</strong> — ${names}</span>
+        <span style="margin-left:auto;font-size:11px;color:#dc2626;opacity:.8">Ver clientes →</span>
+      </div>`;
+    }
+    // Hoje
+    if(reunioesHoje.length){
+      const names=reunioesHoje.map(x=>`${x.c.company_name} (${x.gestor})`).join(', ');
+      html+=`<div class="alert-item" style="background:rgba(1,97,255,.07);border-left:3px solid #0161ff;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.id==='${reunioesHoje[0].c.id}');if(c)showClientDetail(c.id,'resumo')})()">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="#0161ff" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span style="color:#1d4ed8"><strong>📅 ${reunioesHoje.length} reunião${reunioesHoje.length>1?'ões':''} hoje</strong> — ${names}</span>
+        <span style="margin-left:auto;font-size:11px;color:#0161ff;opacity:.8">Ver →</span>
+      </div>`;
+    }
+    // Próximos 7 dias
+    if(reunioesBreve.length){
+      const names=reunioesBreve.slice(0,3).map(x=>`${x.c.company_name} em ${x.diff}d (${x.gestor})`).join(', ')+(reunioesBreve.length>3?` e mais ${reunioesBreve.length-3}`:'');
+      html+=`<div class="alert-item" style="background:rgba(5,150,105,.06);border-left:3px solid #059669;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="#059669" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span style="color:#065f46"><strong>${reunioesBreve.length} reunião${reunioesBreve.length>1?'ões':''} nos próximos 7 dias</strong> — ${names}</span>
+        <span style="margin-left:auto;font-size:11px;color:#059669;opacity:.8">Agenda →</span>
+      </div>`;
+    }
+  }
+
   // ── ESTRATÉGIAS PARA REVISÃO (só admin vê) ──
   const estratPendentes=currentSystemUser?.level==='admin'?clients.filter(c=>c.status==='ativo'&&c.cd_estrategia?.notificar_head):[];
   if(estratPendentes.length){
@@ -5508,6 +5552,46 @@ function renderOrganograma(){
           </div>`;
         }).join('')
       }
+
+      <!-- REUNIÕES AGENDADAS (admin only) -->
+      ${isAdmin?(()=>{
+        const hoje=new Date();hoje.setHours(0,0,0,0);
+        const reusGestor=myClients.filter(c=>c.cd_proxima_reuniao).map(c=>{
+          const dataR=new Date(c.cd_proxima_reuniao+'T00:00:00');dataR.setHours(0,0,0,0);
+          const diff=Math.round((dataR-hoje)/(1000*60*60*24));
+          return{c,diff,dataR};
+        }).sort((a,b)=>a.diff-b.diff);
+        if(!reusGestor.length)return'';
+        return`<div style="border-top:2px solid ${g.color}30;background:${g.color}05">
+          <div style="padding:10px 18px 6px;display:flex;align-items:center;gap:6px">
+            <span style="font-size:13px">📅</span>
+            <span style="font-size:11px;font-weight:700;color:var(--text)">Reuniões agendadas</span>
+            <span style="font-size:10px;background:${g.color}18;color:${g.color};padding:1px 7px;border-radius:10px;font-weight:700">${reusGestor.length}</span>
+          </div>
+          <div style="padding:0 12px 10px;display:flex;flex-direction:column;gap:4px">
+            ${reusGestor.map(({c,diff,dataR})=>{
+              const d=dataR.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+              const atrasada=diff<0;
+              const hoje2=diff===0;
+              const cor=atrasada?'#dc2626':hoje2?'#0161ff':'#059669';
+              const label=atrasada?`${Math.abs(diff)}d atrás`:hoje2?'Hoje':`em ${diff}d`;
+              const motivo=c.cd_proxima_reuniao_motivo||c.cd_proxima_reuniao_tipo||'';
+              return`<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;background:${atrasada?'rgba(220,38,38,.06)':hoje2?'rgba(1,97,255,.06)':'rgba(5,150,105,.05)'};cursor:pointer"
+                onclick="openClientDetail('${c.id}')">
+                <div style="flex-shrink:0;width:34px;text-align:center">
+                  <div style="font-size:12px;font-weight:800;color:${cor}">${d}</div>
+                  <div style="font-size:9px;font-weight:700;color:${cor};margin-top:-1px">${label}</div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:11px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.company_name}</div>
+                  ${motivo?`<div style="font-size:10px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${motivo}</div>`:''}
+                </div>
+                ${atrasada?`<span style="font-size:9px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:2px 6px;border-radius:4px;flex-shrink:0">ATRASADA</span>`:''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      })():''}
 
       <!-- PAUTAS & PENDÊNCIAS (admin only) -->
       ${isAdmin?`
