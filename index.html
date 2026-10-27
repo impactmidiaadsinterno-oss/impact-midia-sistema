@@ -6831,22 +6831,7 @@ function renderCs(){
 
   body.innerHTML=`
     <!-- ALERTAS CS -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
-      ${[
-        {label:'Sem onboarding',val:semOnboarding.length,cor:'#dc2626',icon:'🚀',key:'semOnboarding'},
-        {label:'Sem briefing',val:semBriefing.length,cor:'#d97706',icon:'📋',key:'semBriefing'},
-        {label:'Reunião mensal pendente',val:reunMensalPendente.length,cor:'#7c3aed',icon:'📅',key:'reunMensalPendente'},
-        {label:'Feedback semanal pendente',val:feedbackSemanalPendente.length,cor:'#0891b2',icon:'💬',key:'feedbackSemanalPendente'},
-        {label:'Em risco de churn',val:emRisco.length,cor:'#dc2626',icon:'⚠️',key:'emRisco'},
-        {label:'Renovação em 60 dias',val:renovacaoBreve.length,cor:'#d97706',icon:'🔄',key:'renovacaoBreve'},
-      ].map(k=>`
-        <div style="background:var(--surface);border:1px solid ${k.val>0?k.cor+'40':'var(--border)'};border-radius:12px;padding:14px 16px;cursor:pointer"
-          onclick="csFilterBy('${k.key}')">
-          <div style="font-size:22px;margin-bottom:6px">${k.icon}</div>
-          <div style="font-size:22px;font-weight:800;color:${k.val>0?k.cor:'var(--text-3)'}">${k.val}</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.3">${k.label}</div>
-        </div>`).join('')}
-    </div>
+    <div id="cs-kpis-wrap"></div>
 
     <!-- TABS -->
     <div class="client-tabs-bar" style="margin-bottom:16px">
@@ -6863,6 +6848,47 @@ function renderCs(){
     <div id="cs-tab-log" class="cs-tab" style="display:none">${renderCsLog(ativos)}</div>
     <div id="cs-tab-renovacoes" class="cs-tab" style="display:none">${renderCsRenovacoes(ativos,hoje)}</div>
   `;
+  // Render KPIs after body HTML is set (needs the DOM element)
+  _renderCsKpis(ativos,hoje);
+}
+
+function _renderCsKpis(ativos,hoje){
+  const wrap=document.getElementById('cs-kpis-wrap');
+  if(!wrap)return;
+  const semOnboarding=ativos.filter(c=>!c.cd_cs?.onboarding_feito);
+  const semBriefing=ativos.filter(c=>!c.cd_cs?.briefing_feito);
+  const reunMensalPendente=ativos.filter(c=>{
+    if(!c.cd_cs?.ultima_reuniao_mensal)return true;
+    return Math.round((hoje-new Date(c.cd_cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5))>35;
+  });
+  const feedbackSemanalPendente=ativos.filter(c=>{
+    if(!c.cd_cs?.ultimo_feedback_semanal)return true;
+    return Math.round((hoje-new Date(c.cd_cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9;
+  });
+  const emRisco=ativos.filter(c=>c.churn_risk==='alto');
+  const renovacaoBreve=ativos.filter(c=>{
+    if(!c.start_date||!c.contract_months)return false;
+    const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
+    const diff=Math.round((exp-hoje)/(864e5));
+    return diff>=0&&diff<=60;
+  });
+  const kpis=[
+    {label:'Sem onboarding',val:semOnboarding.length,cor:'#dc2626',icon:'🚀',key:'semOnboarding'},
+    {label:'Sem briefing',val:semBriefing.length,cor:'#d97706',icon:'📋',key:'semBriefing'},
+    {label:'Reunião mensal pendente',val:reunMensalPendente.length,cor:'#7c3aed',icon:'📅',key:'reunMensalPendente'},
+    {label:'Feedback semanal pendente',val:feedbackSemanalPendente.length,cor:'#0891b2',icon:'💬',key:'feedbackSemanalPendente'},
+    {label:'Em risco de churn',val:emRisco.length,cor:'#dc2626',icon:'⚠️',key:'emRisco'},
+    {label:'Renovação em 60 dias',val:renovacaoBreve.length,cor:'#d97706',icon:'🔄',key:'renovacaoBreve'},
+  ];
+  wrap.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
+    ${kpis.map(k=>`
+      <div style="background:var(--surface);border:1px solid ${k.val>0?k.cor+'40':'var(--border)'};border-radius:12px;padding:14px 16px;cursor:pointer"
+        onclick="csFilterBy('${k.key}')">
+        <div style="font-size:22px;margin-bottom:6px">${k.icon}</div>
+        <div style="font-size:22px;font-weight:800;color:${k.val>0?k.cor:'var(--text-3)'}">${k.val}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.3">${k.label}</div>
+      </div>`).join('')}
+  </div>`;
 }
 
 function csSetTab(tab,el){
@@ -6873,20 +6899,74 @@ function csSetTab(tab,el){
 }
 
 function csFilterBy(key){
-  csSetTab('carteira',document.querySelector('#cs-body .client-tab'));
+  // Switch to carteira tab and apply filter
+  const tabBtn=document.querySelector('#cs-body .client-tab:nth-child(2)');
+  csSetTab('carteira',tabBtn||document.querySelector('#cs-body .client-tab'));
+  // Store active filter
+  window._csActiveFilter=key;
+  // Re-render carteira with filter
+  const hoje=new Date();
+  const ativos=clients.filter(c=>c.status==='ativo');
+  const filtered=filterCsClients(ativos,key,hoje);
+  const el=document.getElementById('cs-tab-carteira');
+  if(el)el.innerHTML=renderCsCarteira(filtered,hoje,key);
+}
+
+function filterCsClients(ativos,key,hoje){
+  if(!key)return ativos;
+  return ativos.filter(c=>{
+    const cs=c.cd_cs||{};
+    if(key==='semOnboarding')return!cs.onboarding_feito;
+    if(key==='semBriefing')return!cs.briefing_feito;
+    if(key==='reunMensalPendente'){
+      if(!cs.ultima_reuniao_mensal)return true;
+      return Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5))>35;
+    }
+    if(key==='feedbackSemanalPendente'){
+      if(!cs.ultimo_feedback_semanal)return true;
+      return Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9;
+    }
+    if(key==='emRisco')return c.churn_risk==='alto';
+    if(key==='renovacaoBreve'){
+      if(!c.start_date||!c.contract_months)return false;
+      const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
+      const diff=Math.round((exp-hoje)/(864e5));
+      return diff>=0&&diff<=60;
+    }
+    return true;
+  });
 }
 
 function calcCsScore(c,hoje){
   const cs=c.cd_cs||{};
-  let score=0,max=0;
-  max+=30;if(cs.nps_atual!=null){score+=cs.nps_atual*3;}else{score+=15;}
-  max+=20;if(cs.ultimo_feedback_semanal){const d=Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5));score+=d<=7?20:d<=14?12:d<=21?6:0;}
-  max+=20;if(cs.ultima_reuniao_mensal){const d=Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5));score+=d<=30?20:d<=45?10:d<=60?5:0;}
-  max+=10;if(cs.onboarding_feito)score+=5;if(cs.briefing_feito)score+=5;
-  max+=20;const cr=c.churn_risk;if(cr==='baixo')score+=20;else if(cr==='medio')score+=10;else if(cr==='alto')score+=0;else score+=14;
+  let score=0,pts=0;
+  // Farol manual tem peso dominante: se definido, centraliza o score
+  const cr=c.churn_risk;
+  if(cr==='baixo')return 85;
+  if(cr==='alto')return 15;
+  // Sem farol manual → calcula pelos dados
+  // NPS (0-10): peso 30
+  if(cs.nps_atual!=null){score+=cs.nps_atual*3;pts+=30;}
+  // Feedback semanal: peso 25
+  if(cs.ultimo_feedback_semanal){
+    const d=Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5));
+    score+=d<=7?25:d<=14?18:d<=21?10:d<=30?4:0;pts+=25;
+  }
+  // Reunião mensal: peso 25
+  if(cs.ultima_reuniao_mensal){
+    const d=Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5));
+    score+=d<=30?25:d<=45?15:d<=60?8:0;pts+=25;
+  }
+  // Onboarding + briefing: peso 10
+  score+=(cs.onboarding_feito?5:0)+(cs.briefing_feito?5:0);pts+=10;
+  // Churn médio → 60
+  if(cr==='medio')return Math.min(65,Math.round(pts>0?(score/pts)*70:55));
+  // Sem dados suficientes → neutro (60)
+  if(pts===0)return 60;
+  // Demandas abertas penalizam
   const demAbertas=(cs.logs||[]).filter(l=>l.tipo==='demanda'&&!l.resolvido).length;
-  score=Math.max(0,score-demAbertas*3);
-  return Math.round((score/max)*100);
+  score=Math.max(0,score-demAbertas*5);
+  return Math.min(100,Math.max(0,Math.round((score/pts)*100)));
 }
 
 function renderCsFarol(ativos,hoje){
@@ -7010,8 +7090,17 @@ function renderCsFarol(ativos,hoje){
 function csSetFarolStatus(clientId,nivel){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
   c.churn_risk=nivel;
-  saveAll();showToast({baixo:'🟢 Marcado como saudável',medio:'🟡 Marcado como atenção',alto:'🔴 Marcado como em risco'}[nivel]);
-  renderCs();
+  saveAll();
+  showToast({baixo:'🟢 Marcado como saudável',medio:'🟡 Marcado como atenção',alto:'🔴 Marcado como em risco'}[nivel]);
+  // Re-render apenas o farol completo para atualizar cards e KPIs sem perder estado da página
+  const hoje=new Date();
+  const ativos=clients.filter(c2=>c2.status==='ativo');
+  const tabFarol=document.getElementById('cs-tab-farol');
+  if(tabFarol)tabFarol.innerHTML=renderCsFarol(ativos,hoje);
+  // Atualiza KPIs no topo
+  _renderCsKpis(ativos,hoje);
+  // Atualiza painel admin se existir
+  renderDashboardCsPanel();
 }
 function saveCsFarolObs(clientId,val){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
@@ -7025,9 +7114,14 @@ function saveCsRenovadoStatus(clientId,val){
   showToast(val===true?'✅ Marcado como renovou':val===false?'❌ Marcado como cancelou':'🔄 Marcado como pendente');
 }
 
-function renderCsCarteira(ativos,hoje){
-  if(!ativos.length)return'<div style="text-align:center;padding:40px;color:var(--text-3)">Nenhum cliente ativo</div>';
-  return`<div style="display:flex;flex-direction:column;gap:8px">
+function renderCsCarteira(ativos,hoje,filterKey){
+  const filterLabels={semOnboarding:'Sem onboarding',semBriefing:'Sem briefing',reunMensalPendente:'Reunião pendente',feedbackSemanalPendente:'Feedback pendente',emRisco:'Em risco',renovacaoBreve:'Renovação em 60 dias'};
+  const filterBadge=filterKey?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <span style="font-size:11px;background:#e11d48;color:#fff;padding:3px 10px;border-radius:20px;font-weight:600">🔍 Filtro: ${filterLabels[filterKey]||filterKey}</span>
+    <button onclick="csFilterBy(null);renderCsCarteira(clients.filter(c=>c.status==='ativo'),new Date());const el=document.getElementById('cs-tab-carteira');if(el)el.innerHTML=renderCsCarteira(clients.filter(c=>c.status==='ativo'),new Date());" style="font-size:11px;color:var(--text-3);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer">✕ Limpar</button>
+  </div>`:'';
+  if(!ativos.length)return filterBadge+'<div style="text-align:center;padding:40px;color:var(--text-3)">Nenhum cliente encontrado para este filtro</div>';
+  const html=`<div style="display:flex;flex-direction:column;gap:8px">
     ${ativos.map(c=>{
       const cs=c.cd_cs||{};
       const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(1000*60*60*24)):null;
@@ -7063,6 +7157,7 @@ function renderCsCarteira(ativos,hoje){
       </div>`;
     }).join('')}
   </div>`;
+  return filterBadge+(html||'');
 }
 
 function renderCsChecklist(ativos,hoje){
@@ -7190,7 +7285,46 @@ function openCsClientModal(clientId){
   const cs=c.cd_cs;
   const hoje=new Date().toISOString().slice(0,10);
   const TIPOS_CS={onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'};
+  const isAdmin=currentSystemUser&&currentSystemUser.level==='admin';
+
+  // Datas de contrato
+  const startDate=c.start_date?new Date(c.start_date+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+  const endDate=(c.start_date&&c.contract_months)?()=>{const d=new Date(c.start_date+'T00:00:00');d.setMonth(d.getMonth()+Number(c.contract_months));return d.toLocaleDateString('pt-BR');}():'—';
+
+  // Serviços do cliente
+  const scope=c.cd_escopo||{};
+  const servicos=[
+    scope.meta_ads?'📘 Meta Ads':'',
+    scope.google_ads?'🔍 Google Ads':'',
+    scope.seo?'🌐 SEO':'',
+    scope.email_mkt?'📧 E-mail Mkt':'',
+    scope.crm?'🎯 CRM':'',
+    scope.conteudo?'✍️ Conteúdo':'',
+    scope.design?'🎨 Design':'',
+    scope.outros?`📦 ${scope.outros}`:'',
+    // Fallback: usar niche/serviços do cliente
+    c.service_type?`🏷️ ${c.service_type}`:'',
+  ].filter(Boolean);
+
+  const infoCliente=`
+    <div style="background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📋 Informações do Cliente</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div><div style="font-size:10px;color:var(--text-3)">Nicho</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.niche||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Gestora</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.manager||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Início do contrato</div><div style="font-size:13px;font-weight:600;color:var(--text)">${startDate}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Término do contrato</div><div style="font-size:13px;font-weight:600;color:${endDate==='—'?'var(--text-3)':'var(--text)'}">${endDate}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Meses contratados</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.contract_months?c.contract_months+'m':'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">WhatsApp</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.phone||c.whatsapp||'—'}</div></div>
+      </div>
+      ${servicos.length?`<div style="font-size:10px;color:var(--text-3);margin-bottom:6px">Serviços contratados</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${servicos.map(s=>`<span style="font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-weight:500">${s}</span>`).join('')}
+        </div>`:''}
+    </div>`;
+
   const body=`<div style="display:flex;flex-direction:column;gap:12px">
+    ${infoCliente}
     <div style="background:var(--surface-2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
       <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Etapas do processo</div>
       ${[{key:'onboarding_feito',label:'✅ Onboarding realizado'},{key:'briefing_feito',label:'📋 Briefing realizado'},{key:'grupo_whats_criado',label:'📱 Grupo de WhatsApp criado'}]
@@ -7222,18 +7356,18 @@ function openCsClientModal(clientId){
       </div>
       <textarea class="inp" id="csm-log-obs" rows="2" placeholder="Observações do contato..." style="margin-top:6px;width:100%;box-sizing:border-box"></textarea>
     </div>
-    <div><label class="lbl">Risco de Churn</label>
+    <div><label class="lbl">Farol / Risco de Churn</label>
       <select class="inp" id="csm-churn" style="margin-top:4px">
         <option value="">—</option>
-        <option value="baixo" ${c.churn_risk==='baixo'?'selected':''}>🟢 Baixo</option>
-        <option value="medio" ${c.churn_risk==='medio'?'selected':''}>🟡 Médio</option>
-        <option value="alto" ${c.churn_risk==='alto'?'selected':''}>🔴 Alto</option>
+        <option value="baixo" ${c.churn_risk==='baixo'?'selected':''}>🟢 Saudável (Baixo risco)</option>
+        <option value="medio" ${c.churn_risk==='medio'?'selected':''}>🟡 Atenção (Risco médio)</option>
+        <option value="alto" ${c.churn_risk==='alto'?'selected':''}>🔴 Em risco (Alto risco)</option>
       </select>
     </div>
     <div><label class="lbl">Observação geral CS</label>
       <textarea class="inp" id="csm-obs" rows="2" style="margin-top:4px;width:100%;box-sizing:border-box">${cs.obs||''}</textarea></div>
   </div>`;
-  showInlineModal('Registrar CS — '+c.company_name, body, ()=>saveCsClientModal(clientId), 540);
+  showInlineModal('CS — '+c.company_name, body, ()=>saveCsClientModal(clientId), 580);
 }
 
 function saveCsClientModal(clientId){
@@ -7262,6 +7396,7 @@ function saveCsClientModal(clientId){
   closeModal('inline-modal');
   showToast('Registrado com sucesso!');
   renderCs();
+  renderDashboardCsPanel();
 }
 
 function openCsLogModal(){
