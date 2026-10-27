@@ -705,8 +705,23 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
   <!-- METRICS -->
   <div class="metrics-grid" id="dash-metrics"></div>
 
-  <!-- ALERTAS DE VENCIMENTO -->
-  <div class="alert-strip" id="dash-alerts"></div>
+  <!-- ALERTAS — duas colunas: Financeiro | Operacional -->
+  <div id="dash-alerts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Financeiro
+      </div>
+      <div class="alert-strip" id="dash-alerts-fin"></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Operacional
+      </div>
+      <div class="alert-strip" id="dash-alerts-op"></div>
+    </div>
+  </div>
 
   <!-- MOVIMENTAÇÃO + CHURN -->
   <div class="move-grid">
@@ -3156,80 +3171,66 @@ function renderAlerts(nowM, now){
   const todayDay=now.getDate();
   const daysInMonth=new Date(y,m,0).getDate();
   const activeClients=clients.filter(c=>c.status==='ativo');
-  const newThisMonth=clients.filter(c=>{
-    if(c.start_date){const[y,m]=c.start_date.split('-');return`${y}-${m}`===nowM;}
-    if(c.created_at){const[y,m]=c.created_at.slice(0,7).split('-');return`${y}-${m}`===nowM;}
-    return false;
-  }).length;
-  const leftThisMonth=clients.filter(c=>{
-    if(!c.exit_date)return false;
-    const[y,m]=c.exit_date.split('-');return`${y}-${m}`===nowM;
-  }).length;
 
-  const overdue=[];   // venceu no mês e não tem pagamento confirmado
-  const dueToday=[];  // vence hoje
-  const dueSoon=[];   // vence nos próximos 3 dias
+  const overdue=[];
+  const dueToday=[];
+  const dueSoon=[];
 
   activeClients.forEach(c=>{
     const due=Math.min(c.due_day||1, daysInMonth);
     const rev=revenues.find(r=>r.client_id===c.id&&r.reference_month===nowM);
     const isPaid=rev&&rev.status==='pago';
-    if(isPaid) return; // já pagou, sem alerta
-
+    if(isPaid) return;
     const diff=due-todayDay;
-    if(diff<0)       overdue.push({c,due,diff});
+    if(diff<0)        overdue.push({c,due,diff});
     else if(diff===0) dueToday.push({c,due});
     else if(diff<=3)  dueSoon.push({c,due,diff});
   });
 
-  let html='';
+  // ── FINANCEIRO ──
+  let fin='';
 
   if(overdue.length){
     const names=overdue.slice(0,3).map(x=>x.c.company_name).join(', ')+(overdue.length>3?` e mais ${overdue.length-3}`:'');
     const total=overdue.reduce((a,x)=>a+Number(x.c.monthly_value),0);
-    html+=`<div class="alert-item alert-overdue" onclick="nav('cobrancas',document.querySelector('.nav-item:nth-child(4)'))">
+    fin+=`<div class="alert-item alert-overdue" onclick="nav('cobrancas',document.querySelector('.nav-item:nth-child(4)'))">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span><strong>${overdue.length} pagamento${overdue.length>1?'s':''} em atraso</strong> — ${names} — total ${fmt(total)}</span>
       <span style="margin-left:auto;font-size:11px;opacity:.7">Ver cobranças →</span>
     </div>`;
   }
-
   if(dueToday.length){
     const names=dueToday.slice(0,3).map(x=>x.c.company_name).join(', ')+(dueToday.length>3?` +${dueToday.length-3}`:'');
     const total=dueToday.reduce((a,x)=>a+Number(x.c.monthly_value),0);
-    html+=`<div class="alert-item alert-today" onclick="nav('cobrancas',document.querySelector('.nav-item:nth-child(4)'))">
+    fin+=`<div class="alert-item alert-today" onclick="nav('cobrancas',document.querySelector('.nav-item:nth-child(4)'))">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span><strong>Vence hoje:</strong> ${names} — total ${fmt(total)}</span>
       <span style="margin-left:auto;font-size:11px;opacity:.7">Registrar →</span>
     </div>`;
   }
-
   if(dueSoon.length){
     const names=dueSoon.slice(0,2).map(x=>`${x.c.company_name} (dia ${x.due})`).join(', ')+(dueSoon.length>2?` e mais ${dueSoon.length-2}`:'');
-    html+=`<div class="alert-item alert-soon" onclick="nav('cobrancas',document.querySelector('.nav-item:nth-child(4)'))">
+    fin+=`<div class="alert-item alert-soon" onclick="nav('cobrancas',document.querySelector('.nav-item:nth-child(4)'))">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <span><strong>Vencem em breve:</strong> ${names}</span>
       <span style="margin-left:auto;font-size:11px;opacity:.7">Ver cobranças →</span>
     </div>`;
   }
 
-  // ── CONTRACT EXPIRY ALERTS ──
+  // Contratos
   const today2=new Date();today2.setHours(0,0,0,0);
-  const expiring=[];
-  const expired=[];
+  const expiring=[];const expired=[];
   clients.filter(c=>c.status==='ativo'&&c.start_date&&c.contract_months).forEach(c=>{
-    const start=new Date(c.start_date);
-    const expDate=new Date(start);
+    const expDate=new Date(c.start_date);
     expDate.setMonth(expDate.getMonth()+Number(c.contract_months));
     expDate.setHours(0,0,0,0);
     const daysLeft=Math.round((expDate-today2)/(1000*60*60*24));
     if(daysLeft<0) expired.push({c,expDate,daysLeft});
     else if(daysLeft<=30) expiring.push({c,expDate,daysLeft});
   });
-
   if(expired.length){
     const names=expired.slice(0,3).map(x=>x.c.company_name).join(', ')+(expired.length>3?` e mais ${expired.length-3}`:'');
-    html+=`<div class="alert-item" style="background:rgba(220,38,38,.08);border-left:3px solid #dc2626;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
+    fin+=`<div class="alert-item" style="background:rgba(220,38,38,.08);border-left:3px solid #dc2626;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
       <svg viewBox="0 0 24 24" width="14" height="14" stroke="#dc2626" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span style="color:#dc2626"><strong>${expired.length} contrato${expired.length>1?'s':''} vencido${expired.length>1?'s':''}</strong> — ${names}</span>
       <span style="margin-left:auto;font-size:11px;color:#dc2626;opacity:.8">Renovar →</span>
@@ -3237,19 +3238,18 @@ function renderAlerts(nowM, now){
   }
   if(expiring.length){
     const names=expiring.slice(0,3).map(x=>`${x.c.company_name} (${x.daysLeft}d)`).join(', ')+(expiring.length>3?` e mais ${expiring.length-3}`:'');
-    html+=`<div class="alert-item" style="background:rgba(217,119,6,.08);border-left:3px solid #d97706;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
+    fin+=`<div class="alert-item" style="background:rgba(217,119,6,.08);border-left:3px solid #d97706;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
       <svg viewBox="0 0 24 24" width="14" height="14" stroke="#d97706" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <span style="color:#92400e"><strong>${expiring.length} contrato${expiring.length>1?'s':''} vencendo em breve</strong> — ${names}</span>
       <span style="margin-left:auto;font-size:11px;color:#d97706;opacity:.8">Ver clientes →</span>
     </div>`;
   }
 
-  // ── REUNIÕES AGENDADAS PELAS GESTORAS (só admin vê) ──
+  // ── OPERACIONAL (só admin vê) ──
+  let op='';
   if(currentSystemUser?.level==='admin'){
     const today3=new Date();today3.setHours(0,0,0,0);
-    const reunioesHoje=[];
-    const reunioesBreve=[];
-    const reunioesAtrasadas=[];
+    const reunioesHoje=[];const reunioesBreve=[];const reunioesAtrasadas=[];
     clients.filter(c=>c.status==='ativo'&&c.cd_proxima_reuniao).forEach(c=>{
       const dataR=new Date(c.cd_proxima_reuniao+'T00:00:00');
       dataR.setHours(0,0,0,0);
@@ -3259,57 +3259,84 @@ function renderAlerts(nowM, now){
       else if(diff===0) reunioesHoje.push({c,diff,gestor});
       else if(diff<=7) reunioesBreve.push({c,diff,gestor});
     });
-    // Atrasadas (passaram sem ser marcadas)
     if(reunioesAtrasadas.length){
       const names=reunioesAtrasadas.slice(0,3).map(x=>`${x.c.company_name} (${x.c.cd_proxima_reuniao.split('-').reverse().join('/')})`).join(', ')+(reunioesAtrasadas.length>3?` e mais ${reunioesAtrasadas.length-3}`:'');
-      html+=`<div class="alert-item" style="background:rgba(220,38,38,.07);border-left:3px solid #dc2626;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
+      op+=`<div class="alert-item" style="background:rgba(220,38,38,.07);border-left:3px solid #dc2626;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
         <svg viewBox="0 0 24 24" width="14" height="14" stroke="#dc2626" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span style="color:#dc2626"><strong>${reunioesAtrasadas.length} reunião${reunioesAtrasadas.length>1?'ões':''} sem retorno</strong> — ${names}</span>
         <span style="margin-left:auto;font-size:11px;color:#dc2626;opacity:.8">Ver clientes →</span>
       </div>`;
     }
-    // Hoje
     if(reunioesHoje.length){
       const names=reunioesHoje.map(x=>`${x.c.company_name} (${x.gestor})`).join(', ');
-      html+=`<div class="alert-item" style="background:rgba(1,97,255,.07);border-left:3px solid #0161ff;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.id==='${reunioesHoje[0].c.id}');if(c)showClientDetail(c.id,'resumo')})()">
+      op+=`<div class="alert-item" style="background:rgba(1,97,255,.07);border-left:3px solid #0161ff;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.id==='${reunioesHoje[0].c.id}');if(c)showClientDetail(c.id,'resumo')})()">
         <svg viewBox="0 0 24 24" width="14" height="14" stroke="#0161ff" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span style="color:#1d4ed8"><strong>📅 ${reunioesHoje.length} reunião${reunioesHoje.length>1?'ões':''} hoje</strong> — ${names}</span>
         <span style="margin-left:auto;font-size:11px;color:#0161ff;opacity:.8">Ver →</span>
       </div>`;
     }
-    // Próximos 7 dias
     if(reunioesBreve.length){
       const names=reunioesBreve.slice(0,3).map(x=>{const[yy,mm,dd]=x.c.cd_proxima_reuniao.split('-');return`${x.c.company_name} em ${dd}/${mm} (${x.gestor})`}).join(', ')+(reunioesBreve.length>3?` e mais ${reunioesBreve.length-3}`:'');
-      html+=`<div class="alert-item" style="background:rgba(5,150,105,.06);border-left:3px solid #059669;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
+      op+=`<div class="alert-item" style="background:rgba(5,150,105,.06);border-left:3px solid #059669;cursor:pointer" onclick="nav('clientes',document.getElementById('nav-clientes'))">
         <svg viewBox="0 0 24 24" width="14" height="14" stroke="#059669" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span style="color:#065f46"><strong>${reunioesBreve.length} reunião${reunioesBreve.length>1?'ões':''} nos próximos 7 dias</strong> — ${names}</span>
         <span style="margin-left:auto;font-size:11px;color:#059669;opacity:.8">Agenda →</span>
       </div>`;
     }
+
+    // ── ESTRATÉGIAS AGUARDANDO REVISÃO ── cada uma com botão individual
+    const estratPendentes=clients.filter(c=>c.status==='ativo'&&c.cd_estrategia?.notificar_head);
+    estratPendentes.forEach(c=>{
+      const notAt=c.cd_estrategia.notificar_head_at?new Date(c.cd_estrategia.notificar_head_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'';
+      op+=`<div class="alert-item" style="background:rgba(124,58,237,.08);border-left:3px solid #7c3aed;cursor:default;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="#7c3aed" fill="none" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;margin-top:2px"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <div style="flex:1;min-width:0">
+          <span style="color:#5b21b6;font-weight:600">Estratégia aguardando revisão</span>
+          <span style="color:#7c3aed"> — ${c.company_name}</span>
+          ${notAt?`<span style="color:var(--text-3);font-size:11px"> · enviada ${notAt}</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button onclick="showClientDetail('${c.id}','estrategia')" style="font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid #7c3aed;background:rgba(124,58,237,.1);color:#5b21b6;cursor:pointer;font-family:var(--font);font-weight:600">Ver estratégia →</button>
+          <button onclick="aprovarEstrategia('${c.id}')" style="font-size:11px;padding:4px 10px;border-radius:7px;border:none;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;cursor:pointer;font-family:var(--font);font-weight:600">✅ Aprovar</button>
+        </div>
+      </div>`;
+    });
+
+    // ── ESTRATÉGIAS FINALIZADAS PELOS GESTORES ──
+    const estratFinalizadas=clients.filter(c=>c.status==='ativo'&&c.cd_estrategia?.estrategia_finalizada);
+    if(estratFinalizadas.length){
+      const names=estratFinalizadas.slice(0,3).map(x=>`${x.company_name} (${x.cd_estrategia?.estrategia_finalizada_by||'Gestor'})`).join(', ')+(estratFinalizadas.length>3?` e mais ${estratFinalizadas.length-3}`:'');
+      op+=`<div class="alert-item" style="background:rgba(5,150,105,.07);border-left:3px solid #059669;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.company_name==='${estratFinalizadas[0].company_name}');if(c){currentDetailClientId=c.id;showClientDetail(c.id,'estrategia')}})()">
+        <span style="font-size:14px">🏆</span>
+        <span style="color:#065f46"><strong>${estratFinalizadas.length} estratégia${estratFinalizadas.length>1?'s':''} finalizada${estratFinalizadas.length>1?'s':''} pelo gestor</strong> — ${names}</span>
+        <span style="margin-left:auto;font-size:11px;color:#059669;opacity:.8">Ver →</span>
+      </div>`;
+    }
   }
 
-  // ── ESTRATÉGIAS PARA REVISÃO (só admin vê) ──
-  const estratPendentes=currentSystemUser?.level==='admin'?clients.filter(c=>c.status==='ativo'&&c.cd_estrategia?.notificar_head):[];
-  if(estratPendentes.length){
-    const names=estratPendentes.slice(0,3).map(x=>x.company_name).join(', ')+(estratPendentes.length>3?` e mais ${estratPendentes.length-3}`:'');
-    html+=`<div class="alert-item" style="background:rgba(124,58,237,.08);border-left:3px solid #7c3aed;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.company_name==='${estratPendentes[0].company_name}');if(c){currentDetailClientId=c.id;showClientDetail(c.id,'estrategia')}})()">
-      <svg viewBox="0 0 24 24" width="14" height="14" stroke="#7c3aed" fill="none" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-      <span style="color:#5b21b6"><strong>${estratPendentes.length} estratégia${estratPendentes.length>1?'s':''} aguardando revisão</strong> — ${names}</span>
-      <span style="margin-left:auto;font-size:11px;color:#7c3aed;opacity:.8">Revisar →</span>
-    </div>`;
-  }
-  // ── ESTRATÉGIAS FINALIZADAS PELOS GESTORES (só admin vê) ──
-  const estratFinalizadas=currentSystemUser?.level==='admin'?clients.filter(c=>c.status==='ativo'&&c.cd_estrategia?.estrategia_finalizada):[];
-  if(estratFinalizadas.length){
-    const names=estratFinalizadas.slice(0,3).map(x=>`${x.company_name} (${x.cd_estrategia?.estrategia_finalizada_by||'Gestor'})`).join(', ')+(estratFinalizadas.length>3?` e mais ${estratFinalizadas.length-3}`:'');
-    html+=`<div class="alert-item" style="background:rgba(5,150,105,.07);border-left:3px solid #059669;cursor:pointer" onclick="(()=>{const c=clients.find(x=>x.company_name==='${estratFinalizadas[0].company_name}');if(c){currentDetailClientId=c.id;showClientDetail(c.id,'estrategia')}})()">
-      <span style="font-size:14px">🏆</span>
-      <span style="color:#065f46"><strong>${estratFinalizadas.length} estratégia${estratFinalizadas.length>1?'s':''} finalizada${estratFinalizadas.length>1?'s':''} pelo gestor</strong> — ${names}</span>
-      <span style="margin-left:auto;font-size:11px;color:#059669;opacity:.8">Ver →</span>
-    </div>`;
-  }
+  const elFin=document.getElementById('dash-alerts-fin');
+  const elOp=document.getElementById('dash-alerts-op');
+  if(elFin) elFin.innerHTML=fin||'<div style="font-size:12px;color:var(--text-3);padding:8px 0">Nenhum alerta financeiro.</div>';
+  if(elOp)  elOp.innerHTML=op||'<div style="font-size:12px;color:var(--text-3);padding:8px 0">Nenhuma pendência operacional.</div>';
+  // compatibilidade reversa (caso ainda haja id=dash-alerts em algum lugar)
+  const elLeg=document.getElementById('dash-alerts');
+  if(elLeg) elLeg.innerHTML='';
+}
 
-  document.getElementById('dash-alerts').innerHTML=html||'<div style="font-size:12px;color:var(--text-3);padding:8px 0">Nenhum alerta no momento.</div>';
+// Aprovar estratégia diretamente do dashboard
+function aprovarEstrategia(clientId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_estrategia)c.cd_estrategia={};
+  const e=c.cd_estrategia;
+  e.notificar_head=false;
+  e.notificar_head_at=null;
+  e.estrategia_aprovada=true;
+  e.estrategia_aprovada_by=currentSystemUser?.name||'Head';
+  e.estrategia_aprovada_at=new Date().toISOString();
+  saveAll();
+  showToast('✅ Estratégia de '+c.company_name+' aprovada!',3000);
+  renderAlerts(nowMonth(),new Date());
+  renderDashboard();
 }
 
 // ── 2. PREVISÃO DE RECEITA ────────────────────────────────────
@@ -6452,7 +6479,9 @@ function renderCdEstrategia(){
     const notAt=e.notificar_head_at?new Date(e.notificar_head_at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const btnHead=isGestor
       ? `<button onclick="toggleNotificarHead()" style="padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);border:1px solid ${e.notificar_head?'rgba(22,163,74,.4)':'var(--brand)'};background:${e.notificar_head?'rgba(22,163,74,.12)':'var(--brand)'};color:${e.notificar_head?'#16a34a':'#fff'}">${e.notificar_head?'↩ Remover notificação':'📨 Notificar Head de Tráfego'}</button>`
-      : (e.notificar_head?`<span style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(22,163,74,.12);color:#16a34a;border:1px solid rgba(22,163,74,.3)">✅ Head notificado — aguardando revisão</span>`:'');
+      : (e.notificar_head&&currentSystemUser?.level==='admin'
+          ? `<button onclick="aprovarEstrategia('${currentDetailClientId}')" style="padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);border:none;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff">✅ Aprovar estratégia</button>`
+          : (e.notificar_head?`<span style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;background:rgba(22,163,74,.12);color:#16a34a;border:1px solid rgba(22,163,74,.3)">✅ Head notificado — aguardando revisão</span>`:''));
     const blocoHead=`<div style="padding:14px 18px;border-radius:var(--radius-lg);border:1px solid ${e.notificar_head?'rgba(22,163,74,.3)':'var(--border)'};background:${e.notificar_head?'rgba(22,163,74,.06)':'var(--surface-2)'};display:flex;align-items:center;gap:14px">
       <div style="font-size:26px">${e.notificar_head?'✅':'🔔'}</div>
       <div style="flex:1">
