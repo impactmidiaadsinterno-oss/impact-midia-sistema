@@ -2807,19 +2807,22 @@ function doLogin(){
 
   // Try login with current systemUsers (localStorage)
   const tryLogin=()=>{
-    // Also check default users as fallback
+    // Fallback fixo — garante que todos os usuários sempre existam com a senha correta
     const DEFAULTS=[
       {id:'su1',name:'Jonathan',email:'jonathan@impactmidia.com',password:'impact2025',role:'Sócio',level:'admin',color:'#0161ff'},
-      {id:'su2',name:'Vitor Hugo',email:'vitorhugo@impactmidia.com',password:'vitor123',role:'Sócio',level:'admin',color:'#7c3aed'},
-      {id:'su3',name:'Letícia',email:'leticia@impactmidia.com',password:'gestoraleticia$',role:'Gestora',level:'gestor',color:'#db2777'},
-      {id:'su4',name:'Gabriele',email:'gabriele@impactmidia.com',password:'gabiele%5437',role:'Gestora',level:'gestor',color:'#16a34a'},
-      {id:'su6',name:'Marina',email:'marina@impactmidia.com',password:'marina123',role:'Gestora',level:'gestor',color:'#0891b2'},
+      {id:'su2',name:'Vitor Hugo',email:'vitorhugo@impactmidia.com',password:'impact2025',role:'Sócio',level:'admin',color:'#7c3aed'},
+      {id:'su3',name:'Matheus',email:'matheus@impactmidia.com',password:'matheus123',role:'Gestor',level:'gestor',color:'#16a34a'},
+      {id:'su4',name:'Letícia',email:'leticia@impactmidia.com',password:'gestoraleticia$',role:'Gestora',level:'gestor',color:'#db2777'},
       {id:'su5',name:'SDR',email:'sdr@impactmidia.com',password:'sdr2025',role:'SDR',level:'sdr',color:'#f59e0b'},
+      {id:'su6',name:'Marina',email:'marina@impactmidia.com',password:'marina123',role:'Gestora',level:'gestor',color:'#0891b2'},
       {id:'su7',name:'Sara',email:'sara@impactmidia.com',password:'sara2026cs',role:'Customer Success',level:'cs',color:'#e11d48'},
-      {id:'su0',name:'Admin',email:'admin@impactmidia.com',password:'Login372717',role:'Administrador',level:'admin',color:'#0161ff'},
     ];
-    // Merge defaults into systemUsers if not already there
-    DEFAULTS.forEach(d=>{if(!systemUsers.find(u=>u.id===d.id))systemUsers.push(d)});
+    // Merge: adiciona quem falta e CORRIGE senha de quem já existe (prioridade ao DEFAULTS)
+    DEFAULTS.forEach(d=>{
+      const existing=systemUsers.find(u=>u.id===d.id);
+      if(!existing){systemUsers.push(d);}
+      else{existing.password=d.password;existing.level=d.level;existing.email=d.email;}
+    });
     return systemUsers.find(u=>u.email.toLowerCase()===email&&u.password===pass);
   };
 
