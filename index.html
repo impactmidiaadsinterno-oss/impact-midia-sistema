@@ -373,13 +373,14 @@ textarea.inp{resize:vertical;min-height:72px}
 
 /* ACCESS CONTROL */
 .admin-only{display:none!important}
-.sdr-only{display:none}
+.sdr-only{display:none}.cs-only{display:none}
 body.is-admin .admin-only{display:table-cell!important}
 body.is-admin th.admin-only{display:table-cell!important}
 body.is-admin td.admin-only{display:table-cell!important}
 body.is-admin div.admin-only{display:block!important}
 body.is-admin span.admin-only{display:inline!important}
 body.is-sdr .sdr-only{display:flex}
+body.is-cs .cs-only{display:flex!important}
 body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
 
 /* CLIENT DETAIL TABS */
@@ -595,6 +596,11 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações
       </button>
       <!-- SDR only -->
+      <div class="nav-sep cs-only" style="display:none">CS</div>
+      <button class="nav-item cs-only" id="nav-cs" onclick="nav('cs',this)" style="display:none">
+        <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        Customer Success
+      </button>
       <button class="nav-item sdr-only" id="nav-crm" onclick="nav('crm',this)">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>CRM / Leads
       </button>
@@ -2141,6 +2147,15 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
   <div id="gads-body" style="padding-bottom:40px"></div>
 </div>
 
+<!-- CUSTOMER SUCCESS PAGE -->
+<div class="page" id="page-cs" style="padding-bottom:60px">
+  <div class="sh">
+    <div><div class="st">Customer Success</div><div class="ss" id="cs-sub">Gestão da carteira de clientes</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="cs-header-actions"></div>
+  </div>
+  <div id="cs-body"></div>
+</div>
+
 <div class="page" id="page-crm" style="padding-bottom:60px">
   <div class="sh">
     <div><div class="st">CRM — SDR</div><div class="ss" id="crm-sub">Pipeline de prospecção</div></div>
@@ -2792,6 +2807,7 @@ function doLogin(){
       {id:'su4',name:'Gabriele',email:'gabriele@impactmidia.com',password:'gabiele%5437',role:'Gestora',level:'gestor',color:'#16a34a'},
       {id:'su6',name:'Marina',email:'marina@impactmidia.com',password:'marina123',role:'Gestora',level:'gestor',color:'#0891b2'},
       {id:'su5',name:'SDR',email:'sdr@impactmidia.com',password:'sdr2025',role:'SDR',level:'sdr',color:'#f59e0b'},
+      {id:'su7',name:'Sara',email:'sara@impactmidia.com',password:'sara2026cs',role:'Customer Success',level:'cs',color:'#e11d48'},
       {id:'su0',name:'Admin',email:'admin@impactmidia.com',password:'Login372717',role:'Administrador',level:'admin',color:'#0161ff'},
     ];
     // Merge defaults into systemUsers if not already there
@@ -2890,6 +2906,7 @@ function nav(p,el){
   if(p==='vendas-pontuais')renderVendasPontuais();
   if(p==='configuracoes'){document.getElementById('cfg-monthly-goal').value=settings.monthlyGoal||50000;document.getElementById('cfg-annual-goal').value=settings.annualGoal||100000;renderBackupInfo();renderLembretes();}
   if(p==='crm')renderCrm();
+  if(p==='cs')renderCs();
   if(p==='google-ads')renderGoogleAds();
 }
 
@@ -5375,14 +5392,18 @@ function initApp(){
   const isAdmin=u.level==='admin';
   const isSdr=u.level==='sdr';
 
+  const isCs=u.level==='cs';
   if(isAdmin){
     document.body.classList.add('is-admin');
-    document.body.classList.remove('is-gestor','is-sdr');
+    document.body.classList.remove('is-gestor','is-sdr','is-cs');
   } else if(isSdr){
     document.body.classList.add('is-sdr');
-    document.body.classList.remove('is-admin','is-gestor');
+    document.body.classList.remove('is-admin','is-gestor','is-cs');
+  } else if(isCs){
+    document.body.classList.add('is-cs');
+    document.body.classList.remove('is-admin','is-gestor','is-sdr');
   } else {
-    document.body.classList.remove('is-admin','is-sdr');
+    document.body.classList.remove('is-admin','is-sdr','is-cs');
     document.body.classList.add('is-gestor');
   }
 
@@ -5392,7 +5413,7 @@ function initApp(){
   document.getElementById('sb-user-av').style.background=u.color||'#0161ff';
   document.getElementById('sb-user-name').textContent=u.name;
   document.getElementById('sb-user-role').textContent=u.role||u.level;
-  document.getElementById('sb-sub-label').textContent=isAdmin?'Painel de controle':'Minha carteira';
+  document.getElementById('sb-sub-label').textContent=isAdmin?'Painel de controle':isCs?'Customer Success':'Minha carteira';
 
   // Populate manager filter with system users
   const mf=document.getElementById('client-manager-filter');
@@ -5434,6 +5455,9 @@ function initApp(){
   } else if(isSdr){
     nav('crm',document.getElementById('nav-crm'));
     try{renderCrm();}catch(err){console.error('renderCrm error:',err);}
+  } else if(isCs){
+    nav('cs',document.getElementById('nav-cs'));
+    try{renderCs();}catch(err){console.error('renderCs error:',err);}
   } else {
     nav('gestor-dashboard',document.getElementById('nav-dashboard'));
     try{renderGestorDashboard();}catch(err){console.error('renderGestorDashboard error:',err);}
@@ -6684,6 +6708,521 @@ function salvarTrilhaMesInline(idx){
   const inp=document.getElementById(`trilha-edit-${idx}`);if(!inp)return;
   c.cd_trilha.meses[idx]=inp.value||`Mês ${idx+1}`;
   saveAll();renderCdTrilha();
+}
+
+// ══════════════════════════════════════════════════════
+// CUSTOMER SUCCESS
+// ══════════════════════════════════════════════════════
+function renderCs(){
+  const body=document.getElementById('cs-body');
+  const sub=document.getElementById('cs-sub');
+  const hdr=document.getElementById('cs-header-actions');
+  if(!body)return;
+
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const ativos=clients.filter(c=>c.status==='ativo');
+
+  // Calcular alertas CS
+  const semOnboarding=ativos.filter(c=>!c.cd_cs?.onboarding_feito);
+  const semBriefing=ativos.filter(c=>!c.cd_cs?.briefing_feito);
+  const reunMensalPendente=ativos.filter(c=>{
+    if(!c.cd_cs?.ultima_reuniao_mensal)return true;
+    const d=new Date(c.cd_cs.ultima_reuniao_mensal+'T00:00:00');
+    const diffDias=Math.round((hoje-d)/(1000*60*60*24));
+    return diffDias>35;
+  });
+  const feedbackSemanalPendente=ativos.filter(c=>{
+    if(!c.cd_cs?.ultimo_feedback_semanal)return true;
+    const d=new Date(c.cd_cs.ultimo_feedback_semanal+'T00:00:00');
+    const diffDias=Math.round((hoje-d)/(1000*60*60*24));
+    return diffDias>9;
+  });
+  const emRisco=ativos.filter(c=>c.churn_risk==='alto');
+  const renovacaoBreve=ativos.filter(c=>{
+    if(!c.start_date||!c.contract_months)return false;
+    const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
+    const diff=Math.round((exp-hoje)/(1000*60*60*24));
+    return diff>=0&&diff<=60;
+  });
+
+  sub.textContent=`${ativos.length} clientes ativos`;
+
+  body.innerHTML=`
+    <!-- ALERTAS CS -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
+      ${[
+        {label:'Sem onboarding',val:semOnboarding.length,cor:'#dc2626',icon:'🚀',key:'semOnboarding'},
+        {label:'Sem briefing',val:semBriefing.length,cor:'#d97706',icon:'📋',key:'semBriefing'},
+        {label:'Reunião mensal pendente',val:reunMensalPendente.length,cor:'#7c3aed',icon:'📅',key:'reunMensalPendente'},
+        {label:'Feedback semanal pendente',val:feedbackSemanalPendente.length,cor:'#0891b2',icon:'💬',key:'feedbackSemanalPendente'},
+        {label:'Em risco de churn',val:emRisco.length,cor:'#dc2626',icon:'⚠️',key:'emRisco'},
+        {label:'Renovação em 60 dias',val:renovacaoBreve.length,cor:'#d97706',icon:'🔄',key:'renovacaoBreve'},
+      ].map(k=>`
+        <div style="background:var(--surface);border:1px solid ${k.val>0?k.cor+'40':'var(--border)'};border-radius:12px;padding:14px 16px;cursor:pointer"
+          onclick="csFilterBy('${k.key}')">
+          <div style="font-size:22px;margin-bottom:6px">${k.icon}</div>
+          <div style="font-size:22px;font-weight:800;color:${k.val>0?k.cor:'var(--text-3)'}">${k.val}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.3">${k.label}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- TABS -->
+    <div class="client-tabs-bar" style="margin-bottom:16px">
+      <button class="client-tab active" onclick="csSetTab('farol',this)">🚦 Farol da Carteira</button>
+      <button class="client-tab" onclick="csSetTab('carteira',this)">🗂 Carteira</button>
+      <button class="client-tab" onclick="csSetTab('checklist',this)">✅ Checklist diário</button>
+      <button class="client-tab" onclick="csSetTab('log',this)">📝 Log de contatos</button>
+      <button class="client-tab" onclick="csSetTab('renovacoes',this)">🔄 Renovações</button>
+    </div>
+
+    <div id="cs-tab-farol" class="cs-tab active">${renderCsFarol(ativos,hoje)}</div>
+    <div id="cs-tab-carteira" class="cs-tab" style="display:none">${renderCsCarteira(ativos,hoje)}</div>
+    <div id="cs-tab-checklist" class="cs-tab" style="display:none">${renderCsChecklist(ativos,hoje)}</div>
+    <div id="cs-tab-log" class="cs-tab" style="display:none">${renderCsLog(ativos)}</div>
+    <div id="cs-tab-renovacoes" class="cs-tab" style="display:none">${renderCsRenovacoes(ativos,hoje)}</div>
+  `;
+}
+
+function csSetTab(tab,el){
+  document.querySelectorAll('.cs-tab').forEach(t=>t.style.display='none');
+  document.getElementById('cs-tab-'+tab).style.display='block';
+  document.querySelectorAll('#cs-body .client-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function csFilterBy(key){
+  csSetTab('carteira',document.querySelector('#cs-body .client-tab'));
+}
+
+function renderCsFarol(ativos,hoje){
+  // Calcular score de saúde de cada cliente
+  function calcScore(c){
+    const cs=c.cd_cs||{};
+    let score=0;let max=0;
+    // NPS (0-10 → peso 3)
+    max+=30;
+    if(cs.nps_atual!=null){score+=cs.nps_atual*3;}else{score+=15;}// sem nps = neutro
+    // Feedback semanal recente (<9 dias = ok)
+    max+=20;
+    if(cs.ultimo_feedback_semanal){
+      const d=Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5));
+      score+=d<=7?20:d<=14?12:d<=21?6:0;
+    }
+    // Reunião mensal recente (<35 dias = ok)
+    max+=20;
+    if(cs.ultima_reuniao_mensal){
+      const d=Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5));
+      score+=d<=30?20:d<=45?10:d<=60?5:0;
+    }
+    // Onboarding e briefing feitos
+    max+=10;if(cs.onboarding_feito)score+=5;if(cs.briefing_feito)score+=5;
+    // Churn risk explícito
+    max+=20;
+    const cr=c.churn_risk||cs.churn_risk_cs;
+    if(cr==='baixo')score+=20;else if(cr==='medio')score+=10;else if(cr==='alto')score+=0;else score+=14;
+    // Demandas abertas (penalidade)
+    const demAbertas=(cs.logs||[]).filter(l=>l.tipo==='demanda'&&!l.resolvido).length;
+    score=Math.max(0,score-demAbertas*3);
+    return Math.round((score/max)*100);
+  }
+
+  const lista=ativos.map(c=>{
+    const pct=calcScore(c);
+    const cs=c.cd_cs||{};
+    const nps=cs.nps_atual;
+    const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5)):null;
+    const diasReu=cs.ultima_reuniao_mensal?Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5)):null;
+    let cor,emoji,status;
+    if(pct>=70){cor='#16a34a';emoji='🟢';status='Saudável';}
+    else if(pct>=40){cor='#d97706';emoji='🟡';status='Atenção';}
+    else{cor='#dc2626';emoji='🔴';status='Em risco';}
+    return{c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu};
+  }).sort((a,b)=>a.pct-b.pct);// piores primeiro
+
+  const saudaveis=lista.filter(x=>x.pct>=70).length;
+  const atencao=lista.filter(x=>x.pct>=40&&x.pct<70).length;
+  const risco=lista.filter(x=>x.pct<40).length;
+
+  return`<div>
+    <!-- Resumo farol -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+      <div style="background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.3);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:#16a34a">${saudaveis}</div>
+        <div style="font-size:12px;font-weight:600;color:#16a34a;margin-top:2px">🟢 Saudáveis</div>
+      </div>
+      <div style="background:rgba(217,119,6,.08);border:1.5px solid rgba(217,119,6,.3);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:#d97706">${atencao}</div>
+        <div style="font-size:12px;font-weight:600;color:#d97706;margin-top:2px">🟡 Atenção</div>
+      </div>
+      <div style="background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.3);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:#dc2626">${risco}</div>
+        <div style="font-size:12px;font-weight:600;color:#dc2626;margin-top:2px">🔴 Em risco</div>
+      </div>
+    </div>
+
+    <!-- Cards individuais -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+    ${lista.map(({c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu})=>`
+      <div style="background:var(--surface);border:1.5px solid ${cor}30;border-left:4px solid ${cor};border-radius:10px;padding:14px 18px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${emoji} ${c.company_name}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${c.niche||'—'} · ${c.manager||'—'}</div>
+          </div>
+          <!-- Score bar -->
+          <div style="flex:0 0 140px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:11px;color:var(--text-3)">Saúde</span>
+              <span style="font-size:12px;font-weight:800;color:${cor}">${pct}%</span>
+            </div>
+            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${cor};border-radius:3px;transition:width .4s"></div>
+            </div>
+            <div style="font-size:10px;color:${cor};font-weight:600;margin-top:3px">${status}</div>
+          </div>
+          <!-- Indicadores -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            ${nps!=null?`<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:${nps>=9?'rgba(22,163,74,.1)':nps>=7?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'}">NPS ${nps}</span>`:`<span style="font-size:11px;color:var(--text-3);background:var(--surface-2);padding:3px 9px;border-radius:6px">NPS —</span>`}
+            <span style="font-size:11px;padding:3px 9px;border-radius:6px;background:${diasFeed===null?'var(--surface-2)':diasFeed<=7?'rgba(22,163,74,.1)':diasFeed<=14?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasFeed===null?'var(--text-3)':diasFeed<=7?'#16a34a':diasFeed<=14?'#d97706':'#dc2626'}">💬 ${diasFeed===null?'Sem feed.':diasFeed+'d'}</span>
+            <span style="font-size:11px;padding:3px 9px;border-radius:6px;background:${diasReu===null?'var(--surface-2)':diasReu<=30?'rgba(22,163,74,.1)':diasReu<=45?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasReu===null?'var(--text-3)':diasReu<=30?'#16a34a':diasReu<=45?'#d97706':'#dc2626'}">📅 ${diasReu===null?'Sem reun.':diasReu+'d'}</span>
+            ${c.churn_risk==='alto'?`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:3px 9px;border-radius:6px">⚠️ Churn</span>`:''}
+            ${cs.grupo_whats_criado?`<span style="font-size:11px;color:#16a34a;background:rgba(22,163,74,.1);padding:3px 9px;border-radius:6px">📱 WhatsApp ✓</span>`:cs.grupo_whats_criado===false?`<span style="font-size:11px;color:var(--text-3);background:var(--surface-2);padding:3px 9px;border-radius:6px">📱 Sem grupo</span>`:''}
+          </div>
+          <!-- Ação rápida -->
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" style="font-size:11px;padding:5px 10px" onclick="csSetFarolStatus('${c.id}','baixo')" title="Marcar saudável">🟢</button>
+            <button class="btn btn-sm" style="font-size:11px;padding:5px 10px" onclick="csSetFarolStatus('${c.id}','medio')" title="Marcar atenção">🟡</button>
+            <button class="btn btn-sm" style="font-size:11px;padding:5px 10px" onclick="csSetFarolStatus('${c.id}','alto')" title="Marcar em risco">🔴</button>
+            <button class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
+          </div>
+        </div>
+        <!-- Plano de ação / obs -->
+        ${cs.plano_acao||pct<40?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+          <input class="inp" value="${cs.plano_acao||''}" placeholder="${pct<40?'⚠️ Cliente em risco — descreva o plano de ação...':'Plano de ação / observações...'}"
+            style="font-size:12px" onblur="saveCsFarolObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
+        </div>`:''}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function csSetFarolStatus(clientId,nivel){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  c.churn_risk=nivel;
+  saveAll();showToast({baixo:'🟢 Marcado como saudável',medio:'🟡 Marcado como atenção',alto:'🔴 Marcado como em risco'}[nivel]);
+  renderCs();
+}
+function saveCsFarolObs(clientId,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};c.cd_cs.plano_acao=val;saveAll();
+}
+
+function renderCsCarteira(ativos,hoje){
+  if(!ativos.length)return'<div style="text-align:center;padding:40px;color:var(--text-3)">Nenhum cliente ativo</div>';
+  return`<div style="display:flex;flex-direction:column;gap:8px">
+    ${ativos.map(c=>{
+      const cs=c.cd_cs||{};
+      const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(1000*60*60*24)):null;
+      const diasReu=cs.ultima_reuniao_mensal?Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(1000*60*60*24)):null;
+      const feedOk=diasFeed!==null&&diasFeed<=9;
+      const reunOk=diasReu!==null&&diasReu<=35;
+      const nps=cs.nps_atual;
+      const npsColor=nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626';
+      const gestor=c.manager||c.manager_name||'—';
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">${c.company_name}</div>
+          <div style="font-size:11px;color:var(--text-3)">${c.niche||'—'} · ${gestor}</div>
+        </div>
+        <!-- Status checks -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span title="Onboarding" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${cs.onboarding_feito?'rgba(22,163,74,.1)':'rgba(220,38,38,.1)'};color:${cs.onboarding_feito?'#16a34a':'#dc2626'}">
+            🚀 Onb ${cs.onboarding_feito?'✓':'—'}
+          </span>
+          <span title="Briefing" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${cs.briefing_feito?'rgba(22,163,74,.1)':'rgba(220,38,38,.1)'};color:${cs.briefing_feito?'#16a34a':'#dc2626'}">
+            📋 Brief ${cs.briefing_feito?'✓':'—'}
+          </span>
+          <span title="Feedback semanal" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${feedOk?'rgba(22,163,74,.1)':diasFeed===null?'rgba(107,114,128,.1)':'rgba(220,38,38,.1)'};color:${feedOk?'#16a34a':diasFeed===null?'#6b7280':'#dc2626'}">
+            💬 Feed ${diasFeed===null?'—':diasFeed+'d atrás'}
+          </span>
+          <span title="Reunião mensal" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${reunOk?'rgba(22,163,74,.1)':diasReu===null?'rgba(107,114,128,.1)':'rgba(217,119,6,.1)'};color:${reunOk?'#16a34a':diasReu===null?'#6b7280':'#d97706'}">
+            📅 Reu ${diasReu===null?'—':diasReu+'d atrás'}
+          </span>
+          ${nps!==undefined&&nps!==null?`<span style="font-size:12px;font-weight:800;color:${npsColor};background:${npsColor}15;padding:3px 9px;border-radius:6px">NPS ${nps}</span>`:''}
+          ${c.churn_risk==='alto'?`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:3px 9px;border-radius:6px">⚠️ Risco</span>`:''}
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderCsChecklist(ativos,hoje){
+  const itens=[
+    // Diário
+    {key:'whats_monitorado',label:'Grupos de WhatsApp monitorados e respondidos',icon:'📱',periocidade:'diário'},
+    {key:'demandas_revisadas',label:'Demandas abertas revisadas e encaminhadas',icon:'📋',periocidade:'diário'},
+    {key:'historico_revisado',label:'Histórico das contas em dia (pendências, expectativas, objetivos)',icon:'📖',periocidade:'diário'},
+    // Semanal
+    {key:'feedback_semanal_hoje',label:'Feedback semanal enviado (WhatsApp)',icon:'💬',periocidade:'semanal'},
+    {key:'farol_atualizado',label:'Farol da Carteira atualizado (saudável / atenção / risco)',icon:'🚦',periocidade:'semanal'},
+    {key:'sinais_risco_verificados',label:'Sinais de insatisfação / risco de churn verificados',icon:'⚠️',periocidade:'semanal'},
+    // Mensal
+    {key:'reuniao_mensal_feita',label:'Reunião mensal de resultados realizada',icon:'📅',periocidade:'mensal'},
+    {key:'satisfacao_aferida',label:'Satisfação dos clientes aferida (NPS / percepção)',icon:'⭐',periocidade:'mensal'},
+    {key:'reuniao_interna',label:'Reunião interna com Impact: saúde da carteira apresentada',icon:'🏢',periocidade:'mensal'},
+    // Único / onboarding
+    {key:'onboarding_feito',label:'Onboarding realizado (reunião inicial + acolhimento)',icon:'🚀',periocidade:'único'},
+    {key:'briefing_feito',label:'Briefing realizado (alinhamento com gestora)',icon:'🤝',periocidade:'único'},
+    {key:'grupo_whats_criado',label:'Grupo de WhatsApp criado e ativo',icon:'📱',periocidade:'único'},
+    // Trimestral
+    {key:'depoimento_solicitado',label:'Depoimento / indicação solicitado',icon:'🌟',periocidade:'trimestral'},
+    {key:'renovacao_prospectada',label:'Perspectiva de renovação avaliada',icon:'🔄',periocidade:'trimestral'},
+  ];
+  return`<div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Checklist baseado nas obrigações contratuais da CS. Marque conforme for executando hoje.</div>
+    ${itens.map(it=>`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="csck-${it.key}" style="width:18px;height:18px;accent-color:#e11d48;cursor:pointer" onchange="saveCsChecklist('${it.key}',this.checked)"/>
+        <span style="font-size:16px">${it.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${it.label}</div>
+          <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-top:1px">${it.periocidade}</div>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function renderCsLog(ativos){
+  const todosLogs=[];
+  ativos.forEach(c=>{
+    (c.cd_cs?.logs||[]).forEach(l=>todosLogs.push({...l,clientName:c.company_name,clientId:c.id}));
+  });
+  todosLogs.sort((a,b)=>new Date(b.data)-new Date(a.data));
+
+  return`<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700">Histórico de contatos</div>
+      <button class="btn btn-primary btn-sm" onclick="openCsLogModal()">+ Registrar contato</button>
+    </div>
+    ${todosLogs.length===0
+      ?`<div style="text-align:center;padding:40px;color:var(--text-3)"><div style="font-size:36px;margin-bottom:10px;opacity:.4">📝</div><div style="font-size:13px">Nenhum contato registrado ainda</div></div>`
+      :`<div style="display:flex;flex-direction:column;gap:6px">
+        ${todosLogs.slice(0,30).map(l=>{
+          const tipo={onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Pesquisa satisfação',outro:'📝 Outro'}[l.tipo]||l.tipo;
+          const data=l.data?new Date(l.data+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+          return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;gap:12px;align-items:flex-start">
+            <div style="flex-shrink:0;width:64px;text-align:center">
+              <div style="font-size:11px;font-weight:700;color:var(--text)">${data}</div>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                <span style="font-size:12px;font-weight:700;color:var(--text)">${l.clientName}</span>
+                <span style="font-size:10px;color:var(--text-3);background:var(--surface-2);padding:1px 7px;border-radius:4px">${tipo}</span>
+              </div>
+              ${l.obs?`<div style="font-size:12px;color:var(--text-2)">${l.obs}</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`}
+  </div>`;
+}
+
+function renderCsRenovacoes(ativos,hoje){
+  const lista=ativos.filter(c=>c.start_date&&c.contract_months).map(c=>{
+    const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
+    const diff=Math.round((exp-hoje)/(1000*60*60*24));
+    return{c,exp,diff};
+  }).sort((a,b)=>a.diff-b.diff).slice(0,20);
+
+  return`<div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Acompanhe os contratos prestes a vencer para atuar preventivamente e identificar oportunidades de upsell.</div>
+    ${lista.map(({c,exp,diff})=>{
+      const cor=diff<0?'#dc2626':diff<=30?'#d97706':diff<=60?'#d97706':'#16a34a';
+      const label=diff<0?`Venceu há ${Math.abs(diff)}d`:diff===0?'Vence hoje':`${diff}d restantes`;
+      const expStr=exp.toLocaleDateString('pt-BR');
+      const cs=c.cd_cs||{};
+      return`<div style="background:var(--surface);border:1px solid ${cor}30;border-left:3px solid ${cor};border-radius:10px;padding:14px 18px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${c.company_name}</div>
+            <div style="font-size:11px;color:var(--text-3)">${c.niche||'—'} · ${c.manager||'—'}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:13px;font-weight:800;color:${cor}">${label}</div>
+            <div style="font-size:11px;color:var(--text-3)">Vence em ${expStr}</div>
+          </div>
+        </div>
+        <!-- Ações de renovação -->
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);cursor:pointer">
+            <input type="checkbox" ${cs.renovacao_contato?'checked':''} style="accent-color:#e11d48" onchange="saveCsRenovacao('${c.id}','contato',this.checked)"/>
+            Contato feito
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);cursor:pointer">
+            <input type="checkbox" ${cs.renovacao_proposta?'checked':''} style="accent-color:#e11d48" onchange="saveCsRenovacao('${c.id}','proposta',this.checked)"/>
+            Proposta enviada
+          </label>
+          <label style="display:flex;align-items:center;gap=6px;font-size:12px;color:var(--text-2);cursor:pointer">
+            <input type="checkbox" ${cs.upsell_identificado?'checked':''} style="accent-color:#e11d48" onchange="saveCsRenovacao('${c.id}','upsell',this.checked)"/>
+            Upsell identificado
+          </label>
+          <input class="inp" value="${cs.renovacao_obs||''}" placeholder="Observação de renovação..." style="flex:1;min-width:160px;font-size:12px"
+            onblur="saveCsRenovacaoObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// Modal de registro rápido por cliente
+function openCsClientModal(clientId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  const cs=c.cd_cs;
+  const hoje=new Date().toISOString().slice(0,10);
+  document.getElementById('inline-modal-title').textContent='Registrar CS — '+c.company_name;
+  document.getElementById('inline-modal-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <!-- Checkboxes de etapas -->
+      <div style="background:var(--surface-2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Etapas do processo</div>
+        ${[
+          {key:'onboarding_feito',label:'✅ Onboarding realizado'},
+          {key:'briefing_feito',label:'📋 Briefing realizado'},
+          {key:'grupo_whats_criado',label:'📱 Grupo de WhatsApp criado'},
+        ].map(it=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="csm-${it.key}" ${cs[it.key]?'checked':''} style="accent-color:#e11d48;width:16px;height:16px"/>
+          ${it.label}
+        </label>`).join('')}
+      </div>
+      <!-- Datas de contato -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="lbl">Último feedback semanal</label>
+          <input class="inp" type="date" id="csm-feed" value="${cs.ultimo_feedback_semanal||''}" style="margin-top:4px"/></div>
+        <div><label class="lbl">Última reunião mensal</label>
+          <input class="inp" type="date" id="csm-reu" value="${cs.ultima_reuniao_mensal||''}" style="margin-top:4px"/></div>
+      </div>
+      <!-- NPS -->
+      <div><label class="lbl">NPS atual (0-10)</label>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          ${[...Array(11)].map((_,n)=>`<button onclick="document.querySelectorAll('.nps-btn').forEach(b=>b.style.background='var(--surface-2)');this.style.background='#e11d48';this.style.color='#fff';document.getElementById('csm-nps').value=${n}"
+            class="nps-btn" style="width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:${cs.nps_atual===n?'#e11d48':'var(--surface-2)'};color:${cs.nps_atual===n?'#fff':'var(--text)'};font-size:12px;font-weight:700;cursor:pointer">${n}</button>`).join('')}
+          <input type="hidden" id="csm-nps" value="${cs.nps_atual??''}"/>
+        </div>
+      </div>
+      <!-- Log de contato -->
+      <div>
+        <label class="lbl">Registrar contato agora</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+          <select class="inp" id="csm-log-tipo">
+            <option value="">Tipo de contato...</option>
+            ${['onboarding','briefing','reuniao_mensal','reuniao_interna','feedback_semanal','whatsapp','ligacao','email','demanda','satisfacao','outro'].map(t=>`<option value="${t}">${{onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'}[t]}</option>`).join('')}
+          </select>
+          <input class="inp" type="date" id="csm-log-data" value="${hoje}"/>
+        </div>
+        <textarea class="inp" id="csm-log-obs" rows="2" placeholder="Observações do contato..." style="margin-top:6px;width:100%"></textarea>
+      </div>
+      <!-- Churn risk override -->
+      <div><label class="lbl">Risco de Churn</label>
+        <select class="inp" id="csm-churn" style="margin-top:4px">
+          <option value="">—</option>
+          <option value="baixo" ${c.churn_risk==='baixo'?'selected':''}>🟢 Baixo</option>
+          <option value="medio" ${c.churn_risk==='medio'?'selected':''}>🟡 Médio</option>
+          <option value="alto" ${c.churn_risk==='alto'?'selected':''}>🔴 Alto</option>
+        </select>
+      </div>
+      <!-- Obs geral -->
+      <div><label class="lbl">Observação geral CS</label>
+        <textarea class="inp" id="csm-obs" rows="2" style="margin-top:4px">${cs.obs||''}</textarea></div>
+    </div>
+  `;
+  document.getElementById('inline-modal-save').onclick=()=>saveCsClientModal(clientId);
+  openModal('inline-modal');
+}
+
+function saveCsClientModal(clientId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  const cs=c.cd_cs;
+  cs.onboarding_feito=document.getElementById('csm-onboarding_feito')?.checked||false;
+  cs.briefing_feito=document.getElementById('csm-briefing_feito')?.checked||false;
+  cs.grupo_whats_criado=document.getElementById('csm-grupo_whats_criado')?.checked||false;
+  cs.ultimo_feedback_semanal=document.getElementById('csm-feed')?.value||cs.ultimo_feedback_semanal;
+  cs.ultima_reuniao_mensal=document.getElementById('csm-reu')?.value||cs.ultima_reuniao_mensal;
+  const npsVal=document.getElementById('csm-nps')?.value;
+  if(npsVal!=='')cs.nps_atual=Number(npsVal);
+  cs.obs=document.getElementById('csm-obs')?.value||'';
+  c.churn_risk=document.getElementById('csm-churn')?.value||c.churn_risk;
+  // Registrar log se tipo preenchido
+  const logTipo=document.getElementById('csm-log-tipo')?.value;
+  const logData=document.getElementById('csm-log-data')?.value;
+  const logObs=document.getElementById('csm-log-obs')?.value;
+  if(logTipo){
+    if(!cs.logs)cs.logs=[];
+    cs.logs.unshift({id:Date.now().toString(36),tipo:logTipo,data:logData,obs:logObs});
+    // Atualizar datas automáticas
+    if(logTipo==='feedback_semanal'&&logData)cs.ultimo_feedback_semanal=logData;
+    if(logTipo==='reuniao_mensal'&&logData)cs.ultima_reuniao_mensal=logData;
+  }
+  saveAll();
+  closeModal('inline-modal');
+  showToast('Registrado com sucesso!');
+  renderCs();
+}
+
+function openCsLogModal(){
+  document.getElementById('inline-modal-title').textContent='Registrar contato';
+  const hoje=new Date().toISOString().slice(0,10);
+  document.getElementById('inline-modal-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div><label class="lbl">Cliente</label>
+        <select class="inp" id="cslog-client" style="margin-top:4px">
+          <option value="">Selecione...</option>
+          ${clients.filter(x=>x.status==='ativo').map(x=>`<option value="${x.id}">${x.company_name}</option>`).join('')}
+        </select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><label class="lbl">Tipo</label>
+          <select class="inp" id="cslog-tipo" style="margin-top:4px">
+            ${['onboarding','briefing','reuniao_mensal','reuniao_interna','feedback_semanal','whatsapp','ligacao','email','demanda','satisfacao','outro'].map(t=>`<option value="${t}">${{onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'}[t]}</option>`).join('')}
+          </select></div>
+        <div><label class="lbl">Data</label>
+          <input class="inp" type="date" id="cslog-data" value="${hoje}" style="margin-top:4px"/></div>
+      </div>
+      <div><label class="lbl">Observações</label>
+        <textarea class="inp" id="cslog-obs" rows="3" placeholder="O que foi discutido, próximos passos..." style="margin-top:4px"></textarea></div>
+    </div>`;
+  document.getElementById('inline-modal-save').onclick=saveCsLogModal;
+  openModal('inline-modal');
+}
+
+function saveCsLogModal(){
+  const clientId=document.getElementById('cslog-client')?.value;if(!clientId)return showToast('Selecione um cliente','erro');
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};if(!c.cd_cs.logs)c.cd_cs.logs=[];
+  const tipo=document.getElementById('cslog-tipo')?.value;
+  const data=document.getElementById('cslog-data')?.value;
+  const obs=document.getElementById('cslog-obs')?.value;
+  c.cd_cs.logs.unshift({id:Date.now().toString(36),tipo,data,obs});
+  if(tipo==='feedback_semanal'&&data)c.cd_cs.ultimo_feedback_semanal=data;
+  if(tipo==='reuniao_mensal'&&data)c.cd_cs.ultima_reuniao_mensal=data;
+  saveAll();closeModal('inline-modal');showToast('Contato registrado!');renderCs();
+}
+
+function saveCsChecklist(key,val){showToast(val?'Marcado ✓':'Desmarcado');}
+
+function saveCsRenovacao(clientId,campo,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  const map={contato:'renovacao_contato',proposta:'renovacao_proposta',upsell:'upsell_identificado'};
+  c.cd_cs[map[campo]]=val;
+  saveAll();showToast('Salvo');
+}
+function saveCsRenovacaoObs(clientId,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  c.cd_cs.renovacao_obs=val;
+  saveAll();
 }
 
 // ══════════════════════════════════════════════════════
