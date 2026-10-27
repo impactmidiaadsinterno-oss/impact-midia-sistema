@@ -7298,7 +7298,7 @@ function openCsClientModal(clientId){
 
   // Datas de contrato
   const startDate=c.start_date?new Date(c.start_date+'T00:00:00').toLocaleDateString('pt-BR'):'—';
-  const endDate=(c.start_date&&c.contract_months)?()=>{const d=new Date(c.start_date+'T00:00:00');d.setMonth(d.getMonth()+Number(c.contract_months));return d.toLocaleDateString('pt-BR');}():'—';
+  const endDate=(c.start_date&&c.contract_months)?(()=>{const d=new Date(c.start_date+'T00:00:00');d.setMonth(d.getMonth()+Number(c.contract_months));return d.toLocaleDateString('pt-BR');})():'—';
 
   // Serviços do cliente
   const scope=c.cd_escopo||{};
