@@ -872,6 +872,8 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       </div>
     </div>
   </div>
+  <!-- PAINEL CS — só admins -->
+  <div id="dash-cs-panel" class="admin-only" style="margin-top:20px"></div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════
@@ -2946,6 +2948,83 @@ function cdOpts(){const dark=document.documentElement.getAttribute('data-theme')
 // ══════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════
+function renderDashboardCsPanel(){
+  const el=document.getElementById('dash-cs-panel');
+  if(!el)return;
+  const isAdm=currentSystemUser&&currentSystemUser.level==='admin';
+  if(!isAdm){el.innerHTML='';return;}
+
+  const hoje=new Date();
+  const ativos=clients.filter(c=>c.status==='ativo');
+  let saudaveis=0,atencao=0,risco=0,ltvTotal=0,ltvRisco=0,npsArr=[];
+
+  ativos.forEach(c=>{
+    const sc=calcCsScore(c,hoje);
+    const ticket=Number(c.ticket_value||c.monthly_value||0);
+    const meses=Number(c.contract_months||0);
+    const ltv=ticket&&meses?ticket*meses:0;
+    ltvTotal+=ltv;
+    if(sc>=70){saudaveis++;}
+    else if(sc>=40){atencao++;}
+    else{risco++;ltvRisco+=ltv;}
+    const nps=(c.cd_cs||{}).nps_atual;
+    if(nps!=null)npsArr.push(Number(nps));
+  });
+  const npsMedio=npsArr.length?Math.round(npsArr.reduce((a,b)=>a+b,0)/npsArr.length):null;
+
+  // Clientes em risco
+  const riscoClients=ativos.filter(c=>calcCsScore(c,hoje)<40).sort((a,b)=>calcCsScore(a,hoje)-calcCsScore(b,hoje));
+
+  el.innerHTML=`
+<div class="card cp">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700">🎯 Farol CS — Visão Geral</div>
+    <button class="btn btn-sm" onclick="nav('cs',null,null)" style="font-size:11px;padding:5px 12px">Ver CS completo →</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:16px">
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#22c55e">${saudaveis}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">🟢 Saudáveis</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#f59e0b">${atencao}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">🟡 Atenção</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#ef4444">${risco}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">🔴 Em risco</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:14px;font-weight:800;color:#ef4444">${fmtK(Math.round(ltvRisco))}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">LTV em risco</div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:14px;font-weight:800;color:var(--text)">${fmtK(Math.round(ltvTotal))}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">LTV total</div>
+    </div>
+    ${npsMedio!==null?`<div style="background:var(--surface-2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:${npsMedio>=8?'#22c55e':npsMedio>=6?'#f59e0b':'#ef4444'}">${npsMedio}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">NPS médio</div>
+    </div>`:''}
+  </div>
+  ${riscoClients.length>0?`
+  <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🔴 Clientes em risco</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    ${riscoClients.map(c=>{
+      const sc=calcCsScore(c,hoje);
+      const ticket=Number(c.ticket_value||c.monthly_value||0);
+      const meses=Number(c.contract_months||0);
+      const ltv=ticket&&meses?ticket*meses:0;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:8px;border-left:3px solid #ef4444">
+        <div style="flex:1;font-size:12px;font-weight:600">${c.company_name}</div>
+        <div style="font-size:11px;color:var(--text-3)">Score: <strong style="color:#ef4444">${sc}</strong></div>
+        ${ltv?`<div style="font-size:11px;color:var(--text-3)">LTV ${fmtK(Math.round(ltv))}</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`:''}
+</div>`;
+}
+
 function renderDashboard(){
   const now=new Date();
   const nowM=nowMonth();
@@ -3024,6 +3103,9 @@ function renderDashboard(){
 
   // ── 3. LTV ────────────────────────────────────────────
   renderLTV();
+
+  // ── CS PANEL (admin only) ─────────────────────────────
+  renderDashboardCsPanel();
 
   // Health list
   const sorted=[...clients].filter(c=>c.status==='ativo').sort((a,b)=>calcHealth(a)-calcHealth(b));
@@ -6794,112 +6876,131 @@ function csFilterBy(key){
   csSetTab('carteira',document.querySelector('#cs-body .client-tab'));
 }
 
-function renderCsFarol(ativos,hoje){
-  // Calcular score de saúde de cada cliente
-  function calcScore(c){
-    const cs=c.cd_cs||{};
-    let score=0;let max=0;
-    // NPS (0-10 → peso 3)
-    max+=30;
-    if(cs.nps_atual!=null){score+=cs.nps_atual*3;}else{score+=15;}// sem nps = neutro
-    // Feedback semanal recente (<9 dias = ok)
-    max+=20;
-    if(cs.ultimo_feedback_semanal){
-      const d=Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5));
-      score+=d<=7?20:d<=14?12:d<=21?6:0;
-    }
-    // Reunião mensal recente (<35 dias = ok)
-    max+=20;
-    if(cs.ultima_reuniao_mensal){
-      const d=Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5));
-      score+=d<=30?20:d<=45?10:d<=60?5:0;
-    }
-    // Onboarding e briefing feitos
-    max+=10;if(cs.onboarding_feito)score+=5;if(cs.briefing_feito)score+=5;
-    // Churn risk explícito
-    max+=20;
-    const cr=c.churn_risk||cs.churn_risk_cs;
-    if(cr==='baixo')score+=20;else if(cr==='medio')score+=10;else if(cr==='alto')score+=0;else score+=14;
-    // Demandas abertas (penalidade)
-    const demAbertas=(cs.logs||[]).filter(l=>l.tipo==='demanda'&&!l.resolvido).length;
-    score=Math.max(0,score-demAbertas*3);
-    return Math.round((score/max)*100);
-  }
+function calcCsScore(c,hoje){
+  const cs=c.cd_cs||{};
+  let score=0,max=0;
+  max+=30;if(cs.nps_atual!=null){score+=cs.nps_atual*3;}else{score+=15;}
+  max+=20;if(cs.ultimo_feedback_semanal){const d=Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5));score+=d<=7?20:d<=14?12:d<=21?6:0;}
+  max+=20;if(cs.ultima_reuniao_mensal){const d=Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5));score+=d<=30?20:d<=45?10:d<=60?5:0;}
+  max+=10;if(cs.onboarding_feito)score+=5;if(cs.briefing_feito)score+=5;
+  max+=20;const cr=c.churn_risk;if(cr==='baixo')score+=20;else if(cr==='medio')score+=10;else if(cr==='alto')score+=0;else score+=14;
+  const demAbertas=(cs.logs||[]).filter(l=>l.tipo==='demanda'&&!l.resolvido).length;
+  score=Math.max(0,score-demAbertas*3);
+  return Math.round((score/max)*100);
+}
 
+function renderCsFarol(ativos,hoje){
   const lista=ativos.map(c=>{
-    const pct=calcScore(c);
     const cs=c.cd_cs||{};
+    const pct=calcCsScore(c,hoje);
     const nps=cs.nps_atual;
     const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5)):null;
     const diasReu=cs.ultima_reuniao_mensal?Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5)):null;
+    // LTV: ticket_value * meses contratados ou meses ativo
+    const ticket=Number(c.ticket_value||c.contract_value||0);
+    const meses=Number(c.contract_months||0);
+    const ltv=ticket&&meses?ticket*meses:0;
     let cor,emoji,status;
     if(pct>=70){cor='#16a34a';emoji='🟢';status='Saudável';}
     else if(pct>=40){cor='#d97706';emoji='🟡';status='Atenção';}
     else{cor='#dc2626';emoji='🔴';status='Em risco';}
-    return{c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu};
-  }).sort((a,b)=>a.pct-b.pct);// piores primeiro
+    return{c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu,ltv,ticket};
+  }).sort((a,b)=>a.pct-b.pct);
 
   const saudaveis=lista.filter(x=>x.pct>=70).length;
   const atencao=lista.filter(x=>x.pct>=40&&x.pct<70).length;
   const risco=lista.filter(x=>x.pct<40).length;
+  const ltvTotal=lista.reduce((s,x)=>s+x.ltv,0);
+  const ltvRisco=lista.filter(x=>x.pct<40).reduce((s,x)=>s+x.ltv,0);
+  const fmtR=v=>v?'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
+  const npsMedia=lista.filter(x=>x.nps!=null).length?Math.round(lista.filter(x=>x.nps!=null).reduce((s,x)=>s+x.nps,0)/lista.filter(x=>x.nps!=null).length*10)/10:null;
 
   return`<div>
-    <!-- Resumo farol -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
-      <div style="background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.3);border-radius:12px;padding:16px;text-align:center">
-        <div style="font-size:28px;font-weight:800;color:#16a34a">${saudaveis}</div>
-        <div style="font-size:12px;font-weight:600;color:#16a34a;margin-top:2px">🟢 Saudáveis</div>
+    <!-- KPIs dashboard -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px">
+      <div style="background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:26px;font-weight:800;color:#16a34a">${saudaveis}</div>
+        <div style="font-size:11px;font-weight:600;color:#16a34a;margin-top:2px">🟢 Saudáveis</div>
       </div>
-      <div style="background:rgba(217,119,6,.08);border:1.5px solid rgba(217,119,6,.3);border-radius:12px;padding:16px;text-align:center">
-        <div style="font-size:28px;font-weight:800;color:#d97706">${atencao}</div>
-        <div style="font-size:12px;font-weight:600;color:#d97706;margin-top:2px">🟡 Atenção</div>
+      <div style="background:rgba(217,119,6,.08);border:1.5px solid rgba(217,119,6,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:26px;font-weight:800;color:#d97706">${atencao}</div>
+        <div style="font-size:11px;font-weight:600;color:#d97706;margin-top:2px">🟡 Atenção</div>
       </div>
-      <div style="background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.3);border-radius:12px;padding:16px;text-align:center">
-        <div style="font-size:28px;font-weight:800;color:#dc2626">${risco}</div>
-        <div style="font-size:12px;font-weight:600;color:#dc2626;margin-top:2px">🔴 Em risco</div>
+      <div style="background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.3);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:26px;font-weight:800;color:#dc2626">${risco}</div>
+        <div style="font-size:11px;font-weight:600;color:#dc2626;margin-top:2px">🔴 Em risco</div>
       </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:var(--text)">${fmtR(ltvTotal)}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">💰 LTV total carteira</div>
+      </div>
+      <div style="background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#dc2626">${fmtR(ltvRisco)}</div>
+        <div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ LTV em risco</div>
+      </div>
+      ${npsMedia!==null?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center">
+        <div style="font-size:26px;font-weight:800;color:${npsMedia>=9?'#16a34a':npsMedia>=7?'#d97706':'#dc2626'}">${npsMedia}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">⭐ NPS médio</div>
+      </div>`:''}
     </div>
 
     <!-- Cards individuais -->
     <div style="display:flex;flex-direction:column;gap:8px">
-    ${lista.map(({c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu})=>`
-      <div style="background:var(--surface);border:1.5px solid ${cor}30;border-left:4px solid ${cor};border-radius:10px;padding:14px 18px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="flex:1;min-width:160px">
+    ${lista.map(({c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu,ltv,ticket})=>`
+      <div style="background:var(--surface);border:1.5px solid ${cor}25;border-left:4px solid ${cor};border-radius:10px;padding:12px 16px">
+        <!-- Linha 1: nome + score + ações -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:150px">
             <div style="font-size:13px;font-weight:700;color:var(--text)">${emoji} ${c.company_name}</div>
-            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${c.niche||'—'} · ${c.manager||'—'}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${c.niche||'—'} · ${c.manager||'—'}</div>
           </div>
-          <!-- Score bar -->
-          <div style="flex:0 0 140px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-              <span style="font-size:11px;color:var(--text-3)">Saúde</span>
-              <span style="font-size:12px;font-weight:800;color:${cor}">${pct}%</span>
+          <!-- Score mini -->
+          <div style="flex:0 0 110px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:10px;color:var(--text-3)">Saúde</span>
+              <span style="font-size:11px;font-weight:800;color:${cor}">${pct}%</span>
             </div>
-            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${cor};border-radius:3px;transition:width .4s"></div>
+            <div style="height:5px;background:var(--surface-2);border-radius:3px">
+              <div style="height:100%;width:${pct}%;background:${cor};border-radius:3px"></div>
             </div>
-            <div style="font-size:10px;color:${cor};font-weight:600;margin-top:3px">${status}</div>
           </div>
-          <!-- Indicadores -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            ${nps!=null?`<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:${nps>=9?'rgba(22,163,74,.1)':nps>=7?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'}">NPS ${nps}</span>`:`<span style="font-size:11px;color:var(--text-3);background:var(--surface-2);padding:3px 9px;border-radius:6px">NPS —</span>`}
-            <span style="font-size:11px;padding:3px 9px;border-radius:6px;background:${diasFeed===null?'var(--surface-2)':diasFeed<=7?'rgba(22,163,74,.1)':diasFeed<=14?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasFeed===null?'var(--text-3)':diasFeed<=7?'#16a34a':diasFeed<=14?'#d97706':'#dc2626'}">💬 ${diasFeed===null?'Sem feed.':diasFeed+'d'}</span>
-            <span style="font-size:11px;padding:3px 9px;border-radius:6px;background:${diasReu===null?'var(--surface-2)':diasReu<=30?'rgba(22,163,74,.1)':diasReu<=45?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasReu===null?'var(--text-3)':diasReu<=30?'#16a34a':diasReu<=45?'#d97706':'#dc2626'}">📅 ${diasReu===null?'Sem reun.':diasReu+'d'}</span>
-            ${c.churn_risk==='alto'?`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:3px 9px;border-radius:6px">⚠️ Churn</span>`:''}
-            ${cs.grupo_whats_criado?`<span style="font-size:11px;color:#16a34a;background:rgba(22,163,74,.1);padding:3px 9px;border-radius:6px">📱 WhatsApp ✓</span>`:cs.grupo_whats_criado===false?`<span style="font-size:11px;color:var(--text-3);background:var(--surface-2);padding:3px 9px;border-radius:6px">📱 Sem grupo</span>`:''}
+          <!-- LTV -->
+          ${ltv?`<div style="flex:0 0 auto;text-align:right">
+            <div style="font-size:12px;font-weight:700;color:var(--text)">${fmtR(ltv)}</div>
+            <div style="font-size:10px;color:var(--text-3)">LTV contrato</div>
+          </div>`:''}
+          <!-- Farol manual -->
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='baixo'?'#16a34a':'var(--border)'};background:${c.churn_risk==='baixo'?'rgba(22,163,74,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','baixo')" title="Saudável">🟢</button>
+            <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='medio'?'#d97706':'var(--border)'};background:${c.churn_risk==='medio'?'rgba(217,119,6,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','medio')" title="Atenção">🟡</button>
+            <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='alto'?'#dc2626':'var(--border)'};background:${c.churn_risk==='alto'?'rgba(220,38,38,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','alto')" title="Em risco">🔴</button>
           </div>
-          <!-- Ação rápida -->
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-sm" style="font-size:11px;padding:5px 10px" onclick="csSetFarolStatus('${c.id}','baixo')" title="Marcar saudável">🟢</button>
-            <button class="btn btn-sm" style="font-size:11px;padding:5px 10px" onclick="csSetFarolStatus('${c.id}','medio')" title="Marcar atenção">🟡</button>
-            <button class="btn btn-sm" style="font-size:11px;padding:5px 10px" onclick="csSetFarolStatus('${c.id}','alto')" title="Marcar em risco">🔴</button>
-            <button class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
+        </div>
+        <!-- Linha 2: indicadores + renovação -->
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          ${nps!=null?`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;background:${nps>=9?'rgba(22,163,74,.1)':nps>=7?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'}">NPS ${nps}</span>`:`<span style="font-size:11px;color:var(--text-3);background:var(--surface-2);padding:2px 8px;border-radius:5px">NPS —</span>`}
+          <span style="font-size:11px;padding:2px 8px;border-radius:5px;background:${diasFeed===null?'var(--surface-2)':diasFeed<=7?'rgba(22,163,74,.1)':diasFeed<=14?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasFeed===null?'var(--text-3)':diasFeed<=7?'#16a34a':diasFeed<=14?'#d97706':'#dc2626'}">💬 ${diasFeed===null?'Sem feedback':diasFeed+'d'}</span>
+          <span style="font-size:11px;padding:2px 8px;border-radius:5px;background:${diasReu===null?'var(--surface-2)':diasReu<=30?'rgba(22,163,74,.1)':diasReu<=45?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasReu===null?'var(--text-3)':diasReu<=30?'#16a34a':diasReu<=45?'#d97706':'#dc2626'}">📅 ${diasReu===null?'Sem reunião':diasReu+'d'}</span>
+          ${cs.onboarding_feito?`<span style="font-size:11px;color:#16a34a;padding:2px 8px;border-radius:5px;background:rgba(22,163,74,.1)">🚀 Onb ✓</span>`:`<span style="font-size:11px;color:#dc2626;padding:2px 8px;border-radius:5px;background:rgba(220,38,38,.08)">🚀 Sem onb</span>`}
+          <!-- Renovação inline -->
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--text-3)">Renovação:</span>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;color:${cs.renovado===true?'#16a34a':'var(--text-2)'}">
+              <input type="radio" name="ren-${c.id}" value="sim" ${cs.renovado===true?'checked':''} style="accent-color:#16a34a" onchange="saveCsRenovadoStatus('${c.id}',true)"/> Renovou
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;color:${cs.renovado===false?'#dc2626':'var(--text-2)'}">
+              <input type="radio" name="ren-${c.id}" value="nao" ${cs.renovado===false?'checked':''} style="accent-color:#dc2626" onchange="saveCsRenovadoStatus('${c.id}',false)"/> Cancelou
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;color:${cs.renovado===undefined||cs.renovado===null?'var(--text-3)':'var(--text-2)'}">
+              <input type="radio" name="ren-${c.id}" value="pend" ${cs.renovado===undefined||cs.renovado===null?'checked':''} style="accent-color:#6b7280" onchange="saveCsRenovadoStatus('${c.id}',null)"/> Pendente
+            </label>
           </div>
         </div>
-        <!-- Plano de ação / obs -->
-        ${cs.plano_acao||pct<40?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
-          <input class="inp" value="${cs.plano_acao||''}" placeholder="${pct<40?'⚠️ Cliente em risco — descreva o plano de ação...':'Plano de ação / observações...'}"
-            style="font-size:12px" onblur="saveCsFarolObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
+        <!-- Plano de ação (só para em risco ou se já tem plano) -->
+        ${cs.plano_acao||pct<40?`<div style="margin-top:8px">
+          <input class="inp" value="${(cs.plano_acao||'').replace(/"/g,'&quot;')}" placeholder="⚠️ Plano de ação para este cliente..."
+            style="font-size:12px;width:100%;box-sizing:border-box" onblur="saveCsFarolObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
         </div>`:''}
       </div>`).join('')}
     </div>
@@ -6915,6 +7016,13 @@ function csSetFarolStatus(clientId,nivel){
 function saveCsFarolObs(clientId,val){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
   if(!c.cd_cs)c.cd_cs={};c.cd_cs.plano_acao=val;saveAll();
+}
+function saveCsRenovadoStatus(clientId,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  c.cd_cs.renovado=val;
+  saveAll();
+  showToast(val===true?'✅ Marcado como renovou':val===false?'❌ Marcado como cancelou':'🔄 Marcado como pendente');
 }
 
 function renderCsCarteira(ativos,hoje){
@@ -7081,87 +7189,72 @@ function openCsClientModal(clientId){
   if(!c.cd_cs)c.cd_cs={};
   const cs=c.cd_cs;
   const hoje=new Date().toISOString().slice(0,10);
-  document.getElementById('inline-modal-title').textContent='Registrar CS — '+c.company_name;
-  document.getElementById('inline-modal-body').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <!-- Checkboxes de etapas -->
-      <div style="background:var(--surface-2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Etapas do processo</div>
-        ${[
-          {key:'onboarding_feito',label:'✅ Onboarding realizado'},
-          {key:'briefing_feito',label:'📋 Briefing realizado'},
-          {key:'grupo_whats_criado',label:'📱 Grupo de WhatsApp criado'},
-        ].map(it=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
-          <input type="checkbox" id="csm-${it.key}" ${cs[it.key]?'checked':''} style="accent-color:#e11d48;width:16px;height:16px"/>
-          ${it.label}
+  const TIPOS_CS={onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'};
+  const body=`<div style="display:flex;flex-direction:column;gap:12px">
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Etapas do processo</div>
+      ${[{key:'onboarding_feito',label:'✅ Onboarding realizado'},{key:'briefing_feito',label:'📋 Briefing realizado'},{key:'grupo_whats_criado',label:'📱 Grupo de WhatsApp criado'}]
+        .map(it=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="csm-${it.key}" ${cs[it.key]?'checked':''} style="accent-color:#e11d48;width:16px;height:16px"/> ${it.label}
         </label>`).join('')}
-      </div>
-      <!-- Datas de contato -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><label class="lbl">Último feedback semanal</label>
-          <input class="inp" type="date" id="csm-feed" value="${cs.ultimo_feedback_semanal||''}" style="margin-top:4px"/></div>
-        <div><label class="lbl">Última reunião mensal</label>
-          <input class="inp" type="date" id="csm-reu" value="${cs.ultima_reuniao_mensal||''}" style="margin-top:4px"/></div>
-      </div>
-      <!-- NPS -->
-      <div><label class="lbl">NPS atual (0-10)</label>
-        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-          ${[...Array(11)].map((_,n)=>`<button onclick="document.querySelectorAll('.nps-btn').forEach(b=>b.style.background='var(--surface-2)');this.style.background='#e11d48';this.style.color='#fff';document.getElementById('csm-nps').value=${n}"
-            class="nps-btn" style="width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:${cs.nps_atual===n?'#e11d48':'var(--surface-2)'};color:${cs.nps_atual===n?'#fff':'var(--text)'};font-size:12px;font-weight:700;cursor:pointer">${n}</button>`).join('')}
-          <input type="hidden" id="csm-nps" value="${cs.nps_atual??''}"/>
-        </div>
-      </div>
-      <!-- Log de contato -->
-      <div>
-        <label class="lbl">Registrar contato agora</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-          <select class="inp" id="csm-log-tipo">
-            <option value="">Tipo de contato...</option>
-            ${['onboarding','briefing','reuniao_mensal','reuniao_interna','feedback_semanal','whatsapp','ligacao','email','demanda','satisfacao','outro'].map(t=>`<option value="${t}">${{onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'}[t]}</option>`).join('')}
-          </select>
-          <input class="inp" type="date" id="csm-log-data" value="${hoje}"/>
-        </div>
-        <textarea class="inp" id="csm-log-obs" rows="2" placeholder="Observações do contato..." style="margin-top:6px;width:100%"></textarea>
-      </div>
-      <!-- Churn risk override -->
-      <div><label class="lbl">Risco de Churn</label>
-        <select class="inp" id="csm-churn" style="margin-top:4px">
-          <option value="">—</option>
-          <option value="baixo" ${c.churn_risk==='baixo'?'selected':''}>🟢 Baixo</option>
-          <option value="medio" ${c.churn_risk==='medio'?'selected':''}>🟡 Médio</option>
-          <option value="alto" ${c.churn_risk==='alto'?'selected':''}>🔴 Alto</option>
-        </select>
-      </div>
-      <!-- Obs geral -->
-      <div><label class="lbl">Observação geral CS</label>
-        <textarea class="inp" id="csm-obs" rows="2" style="margin-top:4px">${cs.obs||''}</textarea></div>
     </div>
-  `;
-  document.getElementById('inline-modal-save').onclick=()=>saveCsClientModal(clientId);
-  openModal('inline-modal');
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label class="lbl">Último feedback semanal</label>
+        <input class="inp" type="date" id="csm-feed" value="${cs.ultimo_feedback_semanal||''}" style="margin-top:4px"/></div>
+      <div><label class="lbl">Última reunião mensal</label>
+        <input class="inp" type="date" id="csm-reu" value="${cs.ultima_reuniao_mensal||''}" style="margin-top:4px"/></div>
+    </div>
+    <div><label class="lbl">NPS atual (0-10)</label>
+      <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
+        ${[...Array(11)].map((_,n)=>`<button type="button" onclick="document.querySelectorAll('.nps-btn-cs').forEach(b=>{b.style.background='var(--surface-2)';b.style.color='var(--text)'});this.style.background='#e11d48';this.style.color='#fff';document.getElementById('csm-nps').value='${n}'"
+          class="nps-btn-cs" style="width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:${cs.nps_atual===n?'#e11d48':'var(--surface-2)'};color:${cs.nps_atual===n?'#fff':'var(--text)'};font-size:12px;font-weight:700;cursor:pointer">${n}</button>`).join('')}
+        <input type="hidden" id="csm-nps" value="${cs.nps_atual??''}"/>
+      </div>
+    </div>
+    <div>
+      <label class="lbl">Registrar contato agora</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <select class="inp" id="csm-log-tipo">
+          <option value="">Tipo de contato...</option>
+          ${Object.entries(TIPOS_CS).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
+        </select>
+        <input class="inp" type="date" id="csm-log-data" value="${hoje}"/>
+      </div>
+      <textarea class="inp" id="csm-log-obs" rows="2" placeholder="Observações do contato..." style="margin-top:6px;width:100%;box-sizing:border-box"></textarea>
+    </div>
+    <div><label class="lbl">Risco de Churn</label>
+      <select class="inp" id="csm-churn" style="margin-top:4px">
+        <option value="">—</option>
+        <option value="baixo" ${c.churn_risk==='baixo'?'selected':''}>🟢 Baixo</option>
+        <option value="medio" ${c.churn_risk==='medio'?'selected':''}>🟡 Médio</option>
+        <option value="alto" ${c.churn_risk==='alto'?'selected':''}>🔴 Alto</option>
+      </select>
+    </div>
+    <div><label class="lbl">Observação geral CS</label>
+      <textarea class="inp" id="csm-obs" rows="2" style="margin-top:4px;width:100%;box-sizing:border-box">${cs.obs||''}</textarea></div>
+  </div>`;
+  showInlineModal('Registrar CS — '+c.company_name, body, ()=>saveCsClientModal(clientId), 540);
 }
 
 function saveCsClientModal(clientId){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
   if(!c.cd_cs)c.cd_cs={};
   const cs=c.cd_cs;
-  cs.onboarding_feito=document.getElementById('csm-onboarding_feito')?.checked||false;
-  cs.briefing_feito=document.getElementById('csm-briefing_feito')?.checked||false;
-  cs.grupo_whats_criado=document.getElementById('csm-grupo_whats_criado')?.checked||false;
-  cs.ultimo_feedback_semanal=document.getElementById('csm-feed')?.value||cs.ultimo_feedback_semanal;
-  cs.ultima_reuniao_mensal=document.getElementById('csm-reu')?.value||cs.ultima_reuniao_mensal;
+  cs.onboarding_feito=document.getElementById('csm-onboarding_feito')?.checked||cs.onboarding_feito||false;
+  cs.briefing_feito=document.getElementById('csm-briefing_feito')?.checked||cs.briefing_feito||false;
+  cs.grupo_whats_criado=document.getElementById('csm-grupo_whats_criado')?.checked||cs.grupo_whats_criado||false;
+  const feedVal=document.getElementById('csm-feed')?.value;if(feedVal)cs.ultimo_feedback_semanal=feedVal;
+  const reuVal=document.getElementById('csm-reu')?.value;if(reuVal)cs.ultima_reuniao_mensal=reuVal;
   const npsVal=document.getElementById('csm-nps')?.value;
-  if(npsVal!=='')cs.nps_atual=Number(npsVal);
-  cs.obs=document.getElementById('csm-obs')?.value||'';
-  c.churn_risk=document.getElementById('csm-churn')?.value||c.churn_risk;
-  // Registrar log se tipo preenchido
+  if(npsVal!==''&&npsVal!==null&&npsVal!==undefined)cs.nps_atual=Number(npsVal);
+  const obsVal=document.getElementById('csm-obs')?.value;if(obsVal!==undefined)cs.obs=obsVal;
+  const churnVal=document.getElementById('csm-churn')?.value;if(churnVal)c.churn_risk=churnVal;
   const logTipo=document.getElementById('csm-log-tipo')?.value;
   const logData=document.getElementById('csm-log-data')?.value;
   const logObs=document.getElementById('csm-log-obs')?.value;
   if(logTipo){
     if(!cs.logs)cs.logs=[];
     cs.logs.unshift({id:Date.now().toString(36),tipo:logTipo,data:logData,obs:logObs});
-    // Atualizar datas automáticas
     if(logTipo==='feedback_semanal'&&logData)cs.ultimo_feedback_semanal=logData;
     if(logTipo==='reuniao_mensal'&&logData)cs.ultima_reuniao_mensal=logData;
   }
@@ -7172,28 +7265,26 @@ function saveCsClientModal(clientId){
 }
 
 function openCsLogModal(){
-  document.getElementById('inline-modal-title').textContent='Registrar contato';
   const hoje=new Date().toISOString().slice(0,10);
-  document.getElementById('inline-modal-body').innerHTML=`
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div><label class="lbl">Cliente</label>
-        <select class="inp" id="cslog-client" style="margin-top:4px">
-          <option value="">Selecione...</option>
-          ${clients.filter(x=>x.status==='ativo').map(x=>`<option value="${x.id}">${x.company_name}</option>`).join('')}
+  const TIPOS_CS={onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'};
+  const body=`<div style="display:flex;flex-direction:column;gap:10px">
+    <div><label class="lbl">Cliente</label>
+      <select class="inp" id="cslog-client" style="margin-top:4px">
+        <option value="">Selecione...</option>
+        ${clients.filter(x=>x.status==='ativo').map(x=>`<option value="${x.id}">${x.company_name}</option>`).join('')}
+      </select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="lbl">Tipo</label>
+        <select class="inp" id="cslog-tipo" style="margin-top:4px">
+          ${Object.entries(TIPOS_CS).map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}
         </select></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div><label class="lbl">Tipo</label>
-          <select class="inp" id="cslog-tipo" style="margin-top:4px">
-            ${['onboarding','briefing','reuniao_mensal','reuniao_interna','feedback_semanal','whatsapp','ligacao','email','demanda','satisfacao','outro'].map(t=>`<option value="${t}">${{onboarding:'🚀 Onboarding',briefing:'📋 Briefing',reuniao_mensal:'📅 Reunião mensal',reuniao_interna:'🏢 Reunião interna',feedback_semanal:'💬 Feedback semanal',whatsapp:'📱 WhatsApp',ligacao:'📞 Ligação',email:'📧 E-mail',demanda:'📋 Demanda/Problema',satisfacao:'⭐ Satisfação',outro:'📝 Outro'}[t]}</option>`).join('')}
-          </select></div>
-        <div><label class="lbl">Data</label>
-          <input class="inp" type="date" id="cslog-data" value="${hoje}" style="margin-top:4px"/></div>
-      </div>
-      <div><label class="lbl">Observações</label>
-        <textarea class="inp" id="cslog-obs" rows="3" placeholder="O que foi discutido, próximos passos..." style="margin-top:4px"></textarea></div>
-    </div>`;
-  document.getElementById('inline-modal-save').onclick=saveCsLogModal;
-  openModal('inline-modal');
+      <div><label class="lbl">Data</label>
+        <input class="inp" type="date" id="cslog-data" value="${hoje}" style="margin-top:4px"/></div>
+    </div>
+    <div><label class="lbl">Observações</label>
+      <textarea class="inp" id="cslog-obs" rows="3" placeholder="O que foi discutido, próximos passos..." style="margin-top:4px;width:100%;box-sizing:border-box"></textarea></div>
+  </div>`;
+  showInlineModal('Registrar contato', body, saveCsLogModal, 480);
 }
 
 function saveCsLogModal(){
