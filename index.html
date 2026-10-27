@@ -2477,7 +2477,13 @@ let systemUsers = S.load('systemUsers',[
   {id:'su3',name:'Matheus',email:'matheus@impactmidia.com',password:'matheus123',role:'Gestor',level:'gestor',color:'#16a34a'},
   {id:'su4',name:'Letícia',email:'leticia@impactmidia.com',password:'gestoraleticia$',role:'Gestora',level:'gestor',color:'#db2777'},
   {id:'su5',name:'SDR',email:'sdr@impactmidia.com',password:'sdr2025',role:'SDR',level:'sdr',color:'#f59e0b'},
+  {id:'su7',name:'Sara',email:'sara@impactmidia.com',password:'sara2026cs',role:'Customer Success',level:'cs',color:'#e11d48'},
 ]);
+// Garante que usuários obrigatórios sempre existam (mesmo se localStorage estiver desatualizado)
+const _requiredUsers=[
+  {id:'su7',name:'Sara',email:'sara@impactmidia.com',password:'sara2026cs',role:'Customer Success',level:'cs',color:'#e11d48'},
+];
+_requiredUsers.forEach(u=>{if(!systemUsers.find(x=>x.id===u.id))systemUsers.push(u);});
 let currentSystemUser = null;
 let currentDetailClientId = null;
 let cdSemStatus = 'verde';
