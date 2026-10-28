@@ -1095,11 +1095,20 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       <div class="st">Cobranças</div>
       <div class="ss" id="cob-sub">Acompanhe os pagamentos do mês</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <div class="mnav">
         <button class="btn-icon" onclick="changeCobMonth(-1)"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
         <span class="mlabel" id="cob-month-label"></span>
         <button class="btn-icon" onclick="changeCobMonth(1)"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+      </div>
+      <!-- Alternância cards / tabela -->
+      <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <button id="cob-view-cards" onclick="setCobView('cards')" style="padding:6px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);background:var(--brand);color:#fff;display:flex;align-items:center;gap:5px">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Cards
+        </button>
+        <button id="cob-view-table" onclick="setCobView('tabela')" style="padding:6px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;font-family:var(--font);background:var(--surface-2);color:var(--text-2);display:flex;align-items:center;gap:5px">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>Tabela
+        </button>
       </div>
       <button class="btn btn-primary btn-sm" onclick="openReceitaModalFromCob()">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Registrar pagamento
@@ -1110,12 +1119,16 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
   <!-- RESUMO DO MÊS -->
   <div class="cob-summary" id="cob-summary"></div>
 
-  <!-- LEGENDA -->
-  <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#16a34a"></div><span style="font-size:12px;color:var(--text-2)">Pago</span></div>
-    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#dc2626"></div><span style="font-size:12px;color:var(--text-2)">Atrasado</span></div>
-    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#d97706"></div><span style="font-size:12px;color:var(--text-2)">Pendente</span></div>
-    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:var(--border-md)"></div><span style="font-size:12px;color:var(--text-2)">Sem lançamento</span></div>
+  <!-- BARRA DE PROGRESSO GERAL -->
+  <div id="cob-progress-bar" style="margin-bottom:20px;display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:12px;font-weight:600;color:var(--text-2)">Progresso de recebimento</span>
+      <span style="font-size:12px;font-weight:700;color:var(--brand)" id="cob-progress-pct">0%</span>
+    </div>
+    <div style="height:8px;border-radius:99px;background:var(--border);overflow:hidden">
+      <div id="cob-progress-fill" style="height:100%;border-radius:99px;background:linear-gradient(90deg,#16a34a,#22c55e);transition:width .5s ease;width:0%"></div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap" id="cob-method-breakdown"></div>
   </div>
 
   <!-- FILTROS -->
@@ -1131,6 +1144,15 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       <option value="atrasado">Atrasado</option>
       <option value="sem_lancamento">Sem lançamento</option>
     </select>
+    <select class="inp" style="width:190px" onchange="filterCobMethod(this.value)" id="cob-method-filter">
+      <option value="">Todos os métodos</option>
+      <option value="pix">Pix</option>
+      <option value="cartao">Cartão</option>
+      <option value="asaas">Asaas</option>
+      <option value="boleto">Boleto</option>
+      <option value="transferencia">Transferência</option>
+      <option value="dinheiro">Dinheiro</option>
+    </select>
     <select class="inp" style="width:160px" onchange="sortCob(this.value)" id="cob-sort">
       <option value="dia">Ordenar por vencimento</option>
       <option value="status">Ordenar por status</option>
@@ -1139,8 +1161,19 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
     </select>
   </div>
 
-  <!-- TABELA PRINCIPAL -->
-  <div class="tw">
+  <!-- LEGENDA (só na view tabela) -->
+  <div id="cob-legenda" style="display:none;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#16a34a"></div><span style="font-size:12px;color:var(--text-2)">Pago</span></div>
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#dc2626"></div><span style="font-size:12px;color:var(--text-2)">Atrasado</span></div>
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:#d97706"></div><span style="font-size:12px;color:var(--text-2)">Pendente</span></div>
+    <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:50%;background:var(--border-md)"></div><span style="font-size:12px;color:var(--text-2)">Sem lançamento</span></div>
+  </div>
+
+  <!-- CARDS GRID -->
+  <div id="cob-cards-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:28px"></div>
+
+  <!-- TABELA PRINCIPAL (modo tabela) -->
+  <div class="tw" id="cob-table-wrap" style="display:none">
     <table>
       <thead>
         <tr>
@@ -1160,8 +1193,8 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
     </table>
   </div>
 
-  <!-- LINHA DO TEMPO VISUAL -->
-  <div style="margin-top:24px">
+  <!-- CALENDÁRIO DE VENCIMENTOS -->
+  <div style="margin-top:8px">
     <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px">Calendário de vencimentos — <span id="cob-cal-month"></span></div>
     <div id="cob-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;"></div>
   </div>
@@ -4215,7 +4248,7 @@ function saveClient(){
 // COBRANÇAS
 // ══════════════════════════════════════════════════════
 let currentCobMonth='';
-let cobFilter='', cobStatusFilter='', cobSort='dia';
+let cobFilter='', cobStatusFilter='', cobMethodFilter='', cobSort='dia', cobView='cards';
 
 function changeCobMonth(d){
   const[y,m]=currentCobMonth.split('-').map(Number);
@@ -4223,9 +4256,9 @@ function changeCobMonth(d){
   currentCobMonth=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
   renderCobrancas();
 }
-function filterCob(q){cobFilter=q;renderCobTable();}
-function filterCobStatus(v){cobStatusFilter=v;renderCobTable();}
-function sortCob(v){cobSort=v;renderCobTable();}
+function filterCob(q){cobFilter=q;if(cobView==='cards')renderCobCards();else renderCobTable();}
+function filterCobStatus(v){cobStatusFilter=v;if(cobView==='cards')renderCobCards();else renderCobTable();}
+function sortCob(v){cobSort=v;if(cobView==='cards')renderCobCards();else renderCobTable();}
 
 // Build a merged view: one row per active client, enriched with their payment for this month
 function buildCobRows(month){
@@ -4300,8 +4333,169 @@ function renderCobrancas(){
 
   document.getElementById('cob-sub').textContent=`${fullMonthName(currentCobMonth)} — ${total} clientes monitorados`;
 
-  renderCobTable();
+  // Inicializa view
+  setCobView(cobView||'cards');
   renderCobCalendar();
+}
+
+function filterCobMethod(v){ cobMethodFilter=v; renderCobTable(); renderCobCards(); }
+
+function setCobView(v){
+  cobView=v;
+  const isCards=v==='cards';
+  document.getElementById('cob-cards-grid').style.display=isCards?'grid':'none';
+  document.getElementById('cob-table-wrap').style.display=isCards?'none':'block';
+  document.getElementById('cob-legenda').style.display=isCards?'none':'flex';
+  document.getElementById('cob-progress-bar').style.display=isCards?'block':'none';
+  document.getElementById('cob-view-cards').style.background=isCards?'var(--brand)':'var(--surface-2)';
+  document.getElementById('cob-view-cards').style.color=isCards?'#fff':'var(--text-2)';
+  document.getElementById('cob-view-table').style.background=isCards?'var(--surface-2)':'var(--brand)';
+  document.getElementById('cob-view-table').style.color=isCards?'var(--text-2)':'#fff';
+  if(isCards){ renderCobCards(); renderCobProgressBar(); }
+  else renderCobTable();
+}
+
+// Metadados visuais por método de pagamento
+function cobMethodMeta(m){
+  const map={
+    pix:    {label:'Pix',     icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>', color:'#32bcad', bg:'rgba(50,188,173,.12)', border:'rgba(50,188,173,.3)'},
+    cartao: {label:'Cartão',  icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', color:'#6366f1', bg:'rgba(99,102,241,.12)', border:'rgba(99,102,241,.3)'},
+    asaas:  {label:'Asaas',   icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>', color:'#f59e0b', bg:'rgba(245,158,11,.12)', border:'rgba(245,158,11,.3)'},
+    boleto: {label:'Boleto',  icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>', color:'#0284c7', bg:'rgba(2,132,199,.12)', border:'rgba(2,132,199,.3)'},
+    transferencia:{label:'Transferência',icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>', color:'#059669', bg:'rgba(5,150,105,.12)', border:'rgba(5,150,105,.3)'},
+    dinheiro:{label:'Dinheiro',icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>', color:'#16a34a', bg:'rgba(22,163,74,.12)', border:'rgba(22,163,74,.3)'},
+  };
+  const key=(m||'').toLowerCase().replace(/\s+/g,'').replace('cartãodecredito','cartao').replace('cartaodecredito','cartao').replace('cartão','cartao').replace('débito','cartao').replace('debito','cartao');
+  return map[key]||{label:m||'—', icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>', color:'var(--text-3)', bg:'var(--surface-2)', border:'var(--border)'};
+}
+
+function renderCobProgressBar(){
+  const rows=buildCobRows(currentCobMonth);
+  const total=rows.reduce((a,r)=>a+Number(r.client.monthly_value||0),0);
+  const received=rows.filter(r=>r.status==='pago').reduce((a,r)=>a+(r.paidAmount||0),0);
+  const pct=total>0?Math.round(received/total*100):0;
+  document.getElementById('cob-progress-pct').textContent=pct+'%';
+  document.getElementById('cob-progress-fill').style.width=pct+'%';
+  // Breakdown por método
+  const byMethod={};
+  rows.filter(r=>r.status==='pago').forEach(r=>{
+    const k=(r.payMethod||'outros').toLowerCase();
+    if(!byMethod[k]){byMethod[k]={count:0,total:0};}
+    byMethod[k].count++;byMethod[k].total+=(r.paidAmount||0);
+  });
+  document.getElementById('cob-method-breakdown').innerHTML=Object.entries(byMethod).map(([k,v])=>{
+    const meta=cobMethodMeta(k);
+    return`<div style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;background:${meta.bg};border:1px solid ${meta.border}">
+      <span style="color:${meta.color}">${meta.icon}</span>
+      <span style="font-size:11px;font-weight:600;color:${meta.color}">${meta.label}</span>
+      <span style="font-size:11px;color:var(--text-3)">${v.count}x · ${fmt(v.total)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderCobCards(){
+  let rows=buildCobRows(currentCobMonth);
+  const today=new Date(); today.setHours(0,0,0,0);
+  if(cobFilter){const q=cobFilter.toLowerCase();rows=rows.filter(r=>r.client.company_name.toLowerCase().includes(q)||(r.client.contact_name||'').toLowerCase().includes(q));}
+  if(cobStatusFilter) rows=rows.filter(r=>r.status===cobStatusFilter);
+  if(cobMethodFilter){
+    const mf=cobMethodFilter.toLowerCase();
+    rows=rows.filter(r=>{
+      const pm=(r.payMethod||r.client.payment_method||'').toLowerCase();
+      return pm.includes(mf)||(mf==='cartao'&&(pm.includes('cart'))||false);
+    });
+  }
+  if(cobSort==='dia')    rows.sort((a,b)=>a.dueDay-b.dueDay);
+  if(cobSort==='status'){const ord={atrasado:0,pendente:1,sem_lancamento:2,pago:3};rows.sort((a,b)=>(ord[a.status]||2)-(ord[b.status]||2));}
+  if(cobSort==='valor')  rows.sort((a,b)=>b.client.monthly_value-a.client.monthly_value);
+  if(cobSort==='nome')   rows.sort((a,b)=>a.client.company_name.localeCompare(b.client.company_name));
+
+  const grid=document.getElementById('cob-cards-grid');
+  if(!rows.length){
+    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-3)"><svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.3;display:block;margin:0 auto 12px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p style="font-size:14px">Nenhuma cobrança encontrada</p></div>`;
+    return;
+  }
+  const[my,mm]=currentCobMonth.split('-').map(Number);
+  grid.innerHTML=rows.map(r=>{
+    const info=cobStatusInfo(r.status);
+    const methodMeta=cobMethodMeta(r.payMethod||r.client.payment_method||'');
+    const dueFmt=`${String(r.dueDay).padStart(2,'0')}/${String(mm).padStart(2,'0')}/${my}`;
+
+    // Dias label
+    let daysLabel='',daysColor='var(--text-3)';
+    if(r.status==='pago'&&r.paidAt){
+      const paid=new Date(r.paidAt+'T00:00:00');
+      const d=Math.round((paid-r.dueDate)/(1000*60*60*24));
+      if(d<0){daysLabel=`${Math.abs(d)}d antes`;daysColor='#16a34a';}
+      else if(d===0){daysLabel='No dia';daysColor='#16a34a';}
+      else{daysLabel=`${d}d de atraso`;daysColor='#d97706';}
+    } else if(r.status==='atrasado'){
+      daysLabel=`${r.diffDays}d em atraso`;daysColor='#dc2626';
+    } else {
+      const diff=Math.round((r.dueDate-today)/(1000*60*60*24));
+      if(diff>0){daysLabel=`vence em ${diff}d`;}
+      else if(diff===0){daysLabel='Vence hoje';daysColor='#d97706';}
+      else{daysLabel=`${Math.abs(diff)}d em atraso`;daysColor='#dc2626';}
+    }
+
+    // Borda e fundo do card por status
+    const cardBorder=r.status==='atrasado'?'#dc2626':r.status==='pago'?'#16a34a':r.status==='pendente'?'#d97706':'var(--border)';
+    const cardBg=r.status==='atrasado'?'rgba(220,38,38,.03)':r.status==='pago'?'rgba(22,163,74,.03)':'var(--surface)';
+    const initials=r.client.company_name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+
+    // Avatar color hash
+    const hue=r.client.company_name.split('').reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+
+    return`<div style="border-radius:var(--radius-lg);border:1.5px solid ${cardBorder};background:${cardBg};overflow:hidden;transition:box-shadow .2s" onmouseenter="this.style.boxShadow='var(--shadow-lg)'" onmouseleave="this.style.boxShadow='none'">
+      <!-- Header do card -->
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)">
+        <div style="width:40px;height:40px;border-radius:12px;background:hsl(${hue},60%,88%);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:hsl(${hue},60%,30%);flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.client.company_name}</div>
+          <div style="font-size:11px;color:var(--text-3)">${r.client.contact_name||''}</div>
+        </div>
+        <span class="badge ${info.cls}" style="flex-shrink:0">${info.label}</span>
+      </div>
+      <!-- Método de pagamento -->
+      <div style="padding:10px 16px;background:${methodMeta.bg};border-bottom:1px solid ${methodMeta.border};display:flex;align-items:center;gap:8px">
+        <span style="color:${methodMeta.color}">${methodMeta.icon}</span>
+        <span style="font-size:12px;font-weight:700;color:${methodMeta.color}">${methodMeta.label}</span>
+        <span style="font-size:11px;color:var(--text-3);margin-left:auto">${r.client.payment_method&&r.payMethod&&r.client.payment_method!==r.payMethod?'(padrão: '+cobMethodMeta(r.client.payment_method).label+')':''}</span>
+      </div>
+      <!-- Valores -->
+      <div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:3px">Mensalidade</div>
+          <div style="font-size:16px;font-weight:700;color:var(--text)">${fmt(r.client.monthly_value)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:3px">${r.status==='pago'?'Valor pago':'Valor pago'}</div>
+          <div style="font-size:16px;font-weight:700;color:${r.status==='pago'?'#16a34a':r.status==='atrasado'?'#dc2626':'var(--text-3)'}">${r.paidAmount!==null?fmt(r.paidAmount):'—'}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:3px">Vencimento</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${dueFmt}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:3px">${r.status==='pago'?'Pago em':'Prazo'}</div>
+          <div style="font-size:12px;font-weight:600;color:${daysColor}">${r.status==='pago'&&r.paidAt?fmtDate(r.paidAt):daysLabel||'—'}</div>
+        </div>
+      </div>
+      ${r.notes?`<div style="padding:0 16px 10px;font-size:11px;color:var(--text-3);font-style:italic">"${r.notes}"</div>`:''}
+      <!-- Ações -->
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end">
+        ${r.status==='pago'?`
+          <span style="font-size:12px;color:#16a34a;font-weight:600;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Pagamento confirmado</span>
+          <button class="btn btn-secondary btn-sm" onclick="openReceitaModal('${r.rev?.id}')" style="margin-left:auto">Editar</button>
+        `:r.rev?`
+          <button class="btn btn-secondary btn-sm" onclick="openReceitaModal('${r.rev.id}')">Editar</button>
+          <button class="btn btn-primary btn-sm" onclick="markAsPaid('${r.rev.id}')" style="background:#16a34a;border-color:#16a34a"><svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Marcar como pago</button>
+        `:`
+          <button class="btn btn-primary btn-sm" onclick="openReceitaForClient('${r.client.id}')" style="width:100%;justify-content:center"><svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Registrar pagamento</button>
+        `}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderCobTable(){
@@ -4314,6 +4508,13 @@ function renderCobTable(){
     rows=rows.filter(r=>r.client.company_name.toLowerCase().includes(q)||(r.client.contact_name||'').toLowerCase().includes(q));
   }
   if(cobStatusFilter) rows=rows.filter(r=>r.status===cobStatusFilter);
+  if(cobMethodFilter){
+    const mf=cobMethodFilter.toLowerCase();
+    rows=rows.filter(r=>{
+      const pm=(r.payMethod||r.client.payment_method||'').toLowerCase();
+      return pm.includes(mf)||(mf==='cartao'&&pm.includes('cart'));
+    });
+  }
 
   // Sort
   if(cobSort==='dia')      rows.sort((a,b)=>a.dueDay-b.dueDay);
