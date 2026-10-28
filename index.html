@@ -1765,7 +1765,7 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
         </select>
       </div>
       <div class="fgroup"><label class="lbl">Dia de vencimento</label><input class="inp" id="cf-due" type="number" min="1" max="31" placeholder="5"/></div>
-      <div class="fgroup"><label class="lbl">Forma de pagamento</label><select class="inp" id="cf-pay"><option value="">Selecione</option><option>Boleto</option><option>PIX</option><option>Cartão</option><option>Transferência</option></select></div>
+      <div class="fgroup"><label class="lbl">Forma de pagamento</label><select class="inp" id="cf-pay"><option value="">Selecione</option><option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Cartão">Cartão</option><option value="Asaas">Asaas</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option></select></div>
       <div class="fgroup"><label class="lbl">Status</label><select class="inp" id="cf-status"><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="cancelado">Cancelado</option></select></div>
       <div class="fgroup"><label class="lbl">Relacionamento</label><select class="inp" id="cf-rel"><option value="otimo">Ótimo</option><option value="bom">Bom</option><option value="atencao">Atenção</option><option value="ruim">Ruim</option></select></div>
       <div class="fgroup"><label class="lbl">Resultados</label><select class="inp" id="cf-res"><option value="otimo">Ótimo</option><option value="bom">Bom</option><option value="atencao">Atenção</option><option value="ruim">Ruim</option></select></div>
@@ -1802,7 +1802,15 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
         </select>
       </div>
       <div class="fgroup"><label class="lbl">Forma de pagamento</label>
-        <select class="inp" id="rf-pay"><option value="">Selecione</option><option>Boleto</option><option>PIX</option><option>Cartão</option><option>Transferência</option></select>
+        <select class="inp" id="rf-pay">
+          <option value="">Selecione</option>
+          <option value="PIX">💚 PIX</option>
+          <option value="Boleto">🔵 Boleto</option>
+          <option value="Cartão">🟣 Cartão</option>
+          <option value="Asaas">🟡 Asaas</option>
+          <option value="Transferência">🟢 Transferência</option>
+          <option value="Dinheiro">💵 Dinheiro</option>
+        </select>
       </div>
       <div class="fgroup s2"><label class="lbl">Observação</label><textarea class="inp" id="rf-notes" rows="2" placeholder="Ex: Referente ao mês de julho em atraso, parcelamento..."></textarea></div>
     </div>
@@ -4577,7 +4585,7 @@ function renderCobTable(){
         ${r.paidAmount!==null?fmt(r.paidAmount):'—'}
       </td>
       <td class="td2">${r.paidAt?fmtDate(r.paidAt):'—'}</td>
-      <td class="td2">${r.payMethod||'—'}</td>
+      <td>${(()=>{const m=cobMethodMeta(r.payMethod||r.client.payment_method||'');return r.payMethod||r.client.payment_method?`<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:${m.bg};color:${m.color};border:1px solid ${m.border};white-space:nowrap">${m.icon} ${m.label}</span>`:'<span style="color:var(--text-3);font-size:12px">—</span>';})()}</td>
       <td><span class="badge ${info.cls}">${info.label}</span></td>
       <td><span style="font-size:12px;font-weight:600;color:${daysColor}">${daysLabel}</span></td>
       <td class="td2" style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
