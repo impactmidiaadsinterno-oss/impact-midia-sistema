@@ -1146,12 +1146,11 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
     </select>
     <select class="inp" style="width:190px" onchange="filterCobMethod(this.value)" id="cob-method-filter">
       <option value="">Todos os métodos</option>
-      <option value="pix">Pix</option>
-      <option value="cartao">Cartão</option>
-      <option value="asaas">Asaas</option>
-      <option value="boleto">Boleto</option>
-      <option value="transferencia">Transferência</option>
-      <option value="dinheiro">Dinheiro</option>
+      <option value="PIX Banco">PIX Banco</option>
+      <option value="Boleto Banco">Boleto Banco</option>
+      <option value="Asaas Cartão">Asaas Cartão</option>
+      <option value="Asaas Boleto">Asaas Boleto</option>
+      <option value="Asaas PIX">Asaas PIX</option>
     </select>
     <select class="inp" style="width:160px" onchange="sortCob(this.value)" id="cob-sort">
       <option value="dia">Ordenar por vencimento</option>
@@ -1183,6 +1182,7 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
           <th>Valor pago</th>
           <th>Data do pgto</th>
           <th>Forma</th>
+          <th>Cob. Automática</th>
           <th>Status</th>
           <th>Dias</th>
           <th>Obs</th>
@@ -1765,7 +1765,31 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
         </select>
       </div>
       <div class="fgroup"><label class="lbl">Dia de vencimento</label><input class="inp" id="cf-due" type="number" min="1" max="31" placeholder="5"/></div>
-      <div class="fgroup"><label class="lbl">Forma de pagamento</label><select class="inp" id="cf-pay"><option value="">Selecione</option><option value="PIX">PIX</option><option value="Boleto">Boleto</option><option value="Cartão">Cartão</option><option value="Asaas">Asaas</option><option value="Transferência">Transferência</option><option value="Dinheiro">Dinheiro</option></select></div>
+      <div class="fgroup"><label class="lbl">Forma de pagamento</label><select class="inp" id="cf-pay"><option value="">Selecione</option><option value="PIX Banco">PIX Banco</option><option value="Boleto Banco">Boleto Banco</option><option value="Asaas Cartão">Asaas Cartão</option><option value="Asaas Boleto">Asaas Boleto</option><option value="Asaas PIX">Asaas PIX</option></select></div>
+      <!-- COBRANÇA AUTOMÁTICA -->
+      <div class="fgroup s2">
+        <label class="lbl">Cobrança automática</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+            <div style="position:relative;width:40px;height:22px;flex-shrink:0">
+              <input type="checkbox" id="cf-auto-billing" onchange="toggleAutoBillingFields()" style="opacity:0;position:absolute;width:100%;height:100%;cursor:pointer;z-index:1;margin:0">
+              <div id="cf-auto-billing-track" style="position:absolute;inset:0;border-radius:99px;background:var(--border-md);transition:background .2s"></div>
+              <div id="cf-auto-billing-thumb" style="position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:left .2s"></div>
+            </div>
+            <span id="cf-auto-billing-label" style="font-size:13px;color:var(--text-2)">Não cadastrado</span>
+          </label>
+        </div>
+        <div id="cf-auto-billing-fields" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;border-radius:var(--radius);border:1px solid rgba(5,150,105,.3);background:rgba(5,150,105,.05)">
+          <div>
+            <label class="lbl" style="font-size:11px">Início da cobrança automática</label>
+            <input type="date" class="inp" id="cf-auto-billing-start" style="font-size:12px"/>
+          </div>
+          <div>
+            <label class="lbl" style="font-size:11px">Fim da cobrança automática</label>
+            <input type="date" class="inp" id="cf-auto-billing-end" style="font-size:12px"/>
+          </div>
+        </div>
+      </div>
       <div class="fgroup"><label class="lbl">Status</label><select class="inp" id="cf-status"><option value="ativo">Ativo</option><option value="pausado">Pausado</option><option value="cancelado">Cancelado</option></select></div>
       <div class="fgroup"><label class="lbl">Relacionamento</label><select class="inp" id="cf-rel"><option value="otimo">Ótimo</option><option value="bom">Bom</option><option value="atencao">Atenção</option><option value="ruim">Ruim</option></select></div>
       <div class="fgroup"><label class="lbl">Resultados</label><select class="inp" id="cf-res"><option value="otimo">Ótimo</option><option value="bom">Bom</option><option value="atencao">Atenção</option><option value="ruim">Ruim</option></select></div>
@@ -1804,12 +1828,11 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
       <div class="fgroup"><label class="lbl">Forma de pagamento</label>
         <select class="inp" id="rf-pay">
           <option value="">Selecione</option>
-          <option value="PIX">💚 PIX</option>
-          <option value="Boleto">🔵 Boleto</option>
-          <option value="Cartão">🟣 Cartão</option>
-          <option value="Asaas">🟡 Asaas</option>
-          <option value="Transferência">🟢 Transferência</option>
-          <option value="Dinheiro">💵 Dinheiro</option>
+          <option value="PIX Banco">💚 PIX Banco</option>
+          <option value="Boleto Banco">🔵 Boleto Banco</option>
+          <option value="Asaas Cartão">🟣 Asaas Cartão</option>
+          <option value="Asaas Boleto">🟡 Asaas Boleto</option>
+          <option value="Asaas PIX">🟢 Asaas PIX</option>
         </select>
       </div>
       <div class="fgroup s2"><label class="lbl">Observação</label><textarea class="inp" id="rf-notes" rows="2" placeholder="Ex: Referente ao mês de julho em atraso, parcelamento..."></textarea></div>
@@ -4203,7 +4226,31 @@ function openClientModal(id){
   }
   const phEl=document.getElementById('cf-phase');
   if(phEl) phEl.value=c?c.project_phase||'':'';
+  // Cobrança automática
+  const abCb=document.getElementById('cf-auto-billing');
+  const abStart=document.getElementById('cf-auto-billing-start');
+  const abEnd=document.getElementById('cf-auto-billing-end');
+  if(abCb){
+    abCb.checked=!!(c?.auto_billing);
+    if(abStart) abStart.value=c?.auto_billing_start||'';
+    if(abEnd)   abEnd.value=c?.auto_billing_end||'';
+    toggleAutoBillingFields();
+  }
   openModal('client-modal');
+}
+
+function toggleAutoBillingFields(){
+  const cb=document.getElementById('cf-auto-billing');
+  const fields=document.getElementById('cf-auto-billing-fields');
+  const track=document.getElementById('cf-auto-billing-track');
+  const thumb=document.getElementById('cf-auto-billing-thumb');
+  const lbl=document.getElementById('cf-auto-billing-label');
+  const on=cb?.checked;
+  if(fields) fields.style.display=on?'grid':'none';
+  if(track)  track.style.background=on?'#16a34a':'var(--border-md)';
+  if(thumb)  thumb.style.left=on?'21px':'3px';
+  if(lbl)    lbl.textContent=on?'Cadastrado na cobrança automática':'Não cadastrado na cobrança automática';
+  if(lbl)    lbl.style.color=on?'#16a34a':'var(--text-2)';
 }
 
 function saveClient(){
@@ -4236,6 +4283,9 @@ function saveClient(){
     manager:managerUser?.name||'',
     manager_name:managerUser?.name||'',
     project_phase:document.getElementById('cf-phase')?.value||'',
+    auto_billing:!!(document.getElementById('cf-auto-billing')?.checked),
+    auto_billing_start:document.getElementById('cf-auto-billing-start')?.value||'',
+    auto_billing_end:document.getElementById('cf-auto-billing-end')?.value||'',
     // preserve detail data
     cd_acessos:existing?.cd_acessos||{},cd_escopo:existing?.cd_escopo||null,
     cd_estrategia:existing?.cd_estrategia||{},cd_onboarding:existing?.cd_onboarding||{},
@@ -4365,16 +4415,18 @@ function setCobView(v){
 
 // Metadados visuais por método de pagamento
 function cobMethodMeta(m){
+  const svgPix='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>';
+  const svgBoleto='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>';
+  const svgCard='<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>';
   const map={
-    pix:    {label:'Pix',     icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>', color:'#32bcad', bg:'rgba(50,188,173,.12)', border:'rgba(50,188,173,.3)'},
-    cartao: {label:'Cartão',  icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', color:'#6366f1', bg:'rgba(99,102,241,.12)', border:'rgba(99,102,241,.3)'},
-    asaas:  {label:'Asaas',   icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>', color:'#f59e0b', bg:'rgba(245,158,11,.12)', border:'rgba(245,158,11,.3)'},
-    boleto: {label:'Boleto',  icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/></svg>', color:'#0284c7', bg:'rgba(2,132,199,.12)', border:'rgba(2,132,199,.3)'},
-    transferencia:{label:'Transferência',icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>', color:'#059669', bg:'rgba(5,150,105,.12)', border:'rgba(5,150,105,.3)'},
-    dinheiro:{label:'Dinheiro',icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>', color:'#16a34a', bg:'rgba(22,163,74,.12)', border:'rgba(22,163,74,.3)'},
+    'pix banco':     {label:'PIX Banco',    icon:svgPix,    color:'#059669', bg:'rgba(5,150,105,.11)',  border:'rgba(5,150,105,.28)'},
+    'boleto banco':  {label:'Boleto Banco', icon:svgBoleto, color:'#0284c7', bg:'rgba(2,132,199,.11)',  border:'rgba(2,132,199,.28)'},
+    'asaas cartão':  {label:'Asaas Cartão', icon:svgCard,   color:'#7c3aed', bg:'rgba(124,58,237,.11)', border:'rgba(124,58,237,.28)'},
+    'asaas boleto':  {label:'Asaas Boleto', icon:svgBoleto, color:'#d97706', bg:'rgba(217,119,6,.11)',  border:'rgba(217,119,6,.28)'},
+    'asaas pix':     {label:'Asaas PIX',    icon:svgPix,    color:'#32bcad', bg:'rgba(50,188,173,.11)', border:'rgba(50,188,173,.28)'},
   };
-  const key=(m||'').toLowerCase().replace(/\s+/g,'').replace('cartãodecredito','cartao').replace('cartaodecredito','cartao').replace('cartão','cartao').replace('débito','cartao').replace('debito','cartao');
-  return map[key]||{label:m||'—', icon:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>', color:'var(--text-3)', bg:'var(--surface-2)', border:'var(--border)'};
+  const key=(m||'').toLowerCase().trim();
+  return map[key]||{label:m||'—', icon:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>', color:'var(--text-3)', bg:'var(--surface-2)', border:'var(--border)'};
 }
 
 function renderCobProgressBar(){
@@ -4407,11 +4459,7 @@ function renderCobCards(){
   if(cobFilter){const q=cobFilter.toLowerCase();rows=rows.filter(r=>r.client.company_name.toLowerCase().includes(q)||(r.client.contact_name||'').toLowerCase().includes(q));}
   if(cobStatusFilter) rows=rows.filter(r=>r.status===cobStatusFilter);
   if(cobMethodFilter){
-    const mf=cobMethodFilter.toLowerCase();
-    rows=rows.filter(r=>{
-      const pm=(r.payMethod||r.client.payment_method||'').toLowerCase();
-      return pm.includes(mf)||(mf==='cartao'&&(pm.includes('cart'))||false);
-    });
+    rows=rows.filter(r=>(r.payMethod||r.client.payment_method||'').trim()===cobMethodFilter);
   }
   if(cobSort==='dia')    rows.sort((a,b)=>a.dueDay-b.dueDay);
   if(cobSort==='status'){const ord={atrasado:0,pendente:1,sem_lancamento:2,pago:3};rows.sort((a,b)=>(ord[a.status]||2)-(ord[b.status]||2));}
@@ -4464,11 +4512,19 @@ function renderCobCards(){
         </div>
         <span class="badge ${info.cls}" style="flex-shrink:0">${info.label}</span>
       </div>
-      <!-- Método de pagamento -->
-      <div style="padding:10px 16px;background:${methodMeta.bg};border-bottom:1px solid ${methodMeta.border};display:flex;align-items:center;gap:8px">
+      <!-- Método de pagamento + Cobrança automática -->
+      <div style="padding:10px 16px;background:${methodMeta.bg};border-bottom:1px solid ${methodMeta.border};display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span style="color:${methodMeta.color}">${methodMeta.icon}</span>
         <span style="font-size:12px;font-weight:700;color:${methodMeta.color}">${methodMeta.label}</span>
-        <span style="font-size:11px;color:var(--text-3);margin-left:auto">${r.client.payment_method&&r.payMethod&&r.client.payment_method!==r.payMethod?'(padrão: '+cobMethodMeta(r.client.payment_method).label+')':''}</span>
+        ${(()=>{
+          const ab=r.client.auto_billing;
+          const abS=r.client.auto_billing_start;
+          const abE=r.client.auto_billing_end;
+          if(!ab) return`<span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:rgba(220,38,38,.1);color:#dc2626;border:1px solid rgba(220,38,38,.2)"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Sem cob. automática</span>`;
+          const fmtD=d=>d?d.split('-').reverse().join('/'):'?';
+          const dateRange=abS||abE?` · ${fmtD(abS)} → ${fmtD(abE)}`:'';
+          return`<span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.25)"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Cob. automática${dateRange}</span>`;
+        })()}
       </div>
       <!-- Valores -->
       <div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -4517,11 +4573,7 @@ function renderCobTable(){
   }
   if(cobStatusFilter) rows=rows.filter(r=>r.status===cobStatusFilter);
   if(cobMethodFilter){
-    const mf=cobMethodFilter.toLowerCase();
-    rows=rows.filter(r=>{
-      const pm=(r.payMethod||r.client.payment_method||'').toLowerCase();
-      return pm.includes(mf)||(mf==='cartao'&&pm.includes('cart'));
-    });
+    rows=rows.filter(r=>(r.payMethod||r.client.payment_method||'').trim()===cobMethodFilter);
   }
 
   // Sort
@@ -4586,6 +4638,15 @@ function renderCobTable(){
       </td>
       <td class="td2">${r.paidAt?fmtDate(r.paidAt):'—'}</td>
       <td>${(()=>{const m=cobMethodMeta(r.payMethod||r.client.payment_method||'');return r.payMethod||r.client.payment_method?`<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:${m.bg};color:${m.color};border:1px solid ${m.border};white-space:nowrap">${m.icon} ${m.label}</span>`:'<span style="color:var(--text-3);font-size:12px">—</span>';})()}</td>
+      <td>${(()=>{
+        const ab=r.client.auto_billing;
+        const abS=r.client.auto_billing_start;
+        const abE=r.client.auto_billing_end;
+        const fmtD=d=>d?d.split('-').reverse().join('/'):'?';
+        if(!ab) return`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);white-space:nowrap"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Não</span>`;
+        const range=abS&&abE?`<div style="font-size:9px;color:#16a34a;margin-top:2px">${fmtD(abS)} → ${fmtD(abE)}</div>`:'';
+        return`<div><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.25);white-space:nowrap"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Ativa</span>${range}</div>`;
+      })()}</td>
       <td><span class="badge ${info.cls}">${info.label}</span></td>
       <td><span style="font-size:12px;font-weight:600;color:${daysColor}">${daysLabel}</span></td>
       <td class="td2" style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
