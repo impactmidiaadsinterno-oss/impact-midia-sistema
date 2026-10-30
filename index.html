@@ -379,6 +379,7 @@ body.is-admin th.admin-only{display:table-cell!important}
 body.is-admin td.admin-only{display:table-cell!important}
 body.is-admin div.admin-only{display:block!important}
 body.is-admin span.admin-only{display:inline!important}
+body.is-admin button.admin-only{display:flex!important}
 body.is-sdr .sdr-only{display:flex}
 body.is-cs .cs-only{display:flex!important}
 body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
@@ -583,6 +584,10 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       </button>
       <button class="nav-item admin-only" id="nav-vendas-pontuais" onclick="nav('vendas-pontuais',this)">
         <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Vendas Pontuais
+      </button>
+      <div class="nav-sep admin-only">Farol CS</div>
+      <button class="nav-item admin-only" id="nav-farol-admin" onclick="nav('farol-admin',this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Farol &amp; CS
       </button>
       <div class="nav-sep" id="nav-sep-google-ads">Google Ads</div>
       <button class="nav-item" id="nav-google-ads" onclick="nav('google-ads',this)">
@@ -1350,6 +1355,34 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova venda
     </button>
   </div>
+  <!-- Filtros -->
+  <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px">
+      <svg viewBox="0 0 24 24" width="14" height="14" stroke="var(--text-3)" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <select class="inp" id="vp-period-type" onchange="vpOnPeriodTypeChange()" style="border:none;background:transparent;padding:0;font-size:13px;color:var(--text);min-width:120px">
+        <option value="all">Todos os períodos</option>
+        <option value="month">Mês específico</option>
+        <option value="range">Intervalo de datas</option>
+      </select>
+    </div>
+    <div id="vp-month-pick" style="display:none">
+      <input type="month" class="inp" id="vp-month" style="font-size:13px" onchange="renderVendasPontuais()"/>
+    </div>
+    <div id="vp-range-pick" style="display:none;align-items:center;gap:6px">
+      <input type="date" class="inp" id="vp-date-from" style="font-size:13px" onchange="renderVendasPontuais()"/>
+      <span style="color:var(--text-3);font-size:12px">até</span>
+      <input type="date" class="inp" id="vp-date-to" style="font-size:13px" onchange="renderVendasPontuais()"/>
+    </div>
+    <div style="flex:1"></div>
+    <input class="inp" id="vp-search" placeholder="🔍 Buscar serviço ou cliente..." style="font-size:13px;max-width:260px" oninput="renderVendasPontuais()"/>
+    <select class="inp" id="vp-status-filter" style="font-size:13px" onchange="renderVendasPontuais()">
+      <option value="">Todos os status</option>
+      <option value="pago">Pago</option>
+      <option value="pendente">Pendente</option>
+      <option value="parcelado">Parcelado</option>
+      <option value="cancelado">Cancelado</option>
+    </select>
+  </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px" id="vp-kpis"></div>
   <div class="card" style="overflow:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -1366,6 +1399,49 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       </tr></thead>
       <tbody id="vp-tbody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     FAROL ADMIN
+══════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-farol-admin" style="padding-bottom:60px">
+  <div class="sh">
+    <div><div class="st">🚦 Farol &amp; CS</div><div class="ss">Controle de carteiras e status dos clientes por CS</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="openFarolCsModal()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Gerenciar CS
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI row -->
+  <div id="farol-admin-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px"></div>
+
+  <!-- CS selector tabs -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="farol-cs-tabs"></div>
+
+  <!-- Farol table per CS -->
+  <div id="farol-admin-body"></div>
+</div>
+
+<!-- Modal Gerenciar CS -->
+<div class="mover" id="farol-cs-modal">
+  <div class="modal" style="max-width:520px;width:95%">
+    <div class="mhdr"><div class="mtitle">Gerenciar Carteira da CS</div><button class="mclose" onclick="closeModal('farol-cs-modal')">×</button></div>
+    <div style="padding:20px">
+      <div class="fgroup" style="margin-bottom:14px">
+        <label class="lbl">Selecionar CS</label>
+        <select class="inp" id="fcm-cs-select" onchange="loadFarolCsAssign()">
+          <option value="">-- Selecione --</option>
+        </select>
+      </div>
+      <div id="fcm-assign-list" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px"></div>
+    </div>
+    <div class="faction">
+      <button class="btn btn-secondary" onclick="closeModal('farol-cs-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFarolCsAssign()">Salvar Carteira</button>
+    </div>
   </div>
 </div>
 
@@ -2450,6 +2526,36 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
   </div>
 </div>
 
+<!-- Modal edição inline Cob. Automática -->
+<div class="mover" id="auto-billing-inline-modal">
+  <div class="modal" style="max-width:420px;width:95%">
+    <div class="mhdr"><div class="mtitle">Cobrança Automática</div><button class="mclose" onclick="closeModal('auto-billing-inline-modal')">×</button></div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div id="abi-client-name" style="font-size:13px;font-weight:600;color:var(--text);padding:10px 12px;background:var(--surface-2);border-radius:8px"></div>
+      <!-- Toggle -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Cadastrada na cobrança automática</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px" id="abi-status-lbl">Não cadastrado</div>
+        </div>
+        <div style="position:relative;width:44px;height:24px;cursor:pointer" onclick="abiToggle()">
+          <div id="abi-track" style="position:absolute;inset:0;border-radius:12px;background:var(--border-md);transition:background .2s"></div>
+          <div id="abi-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .2s"></div>
+        </div>
+      </div>
+      <!-- Date fields -->
+      <div id="abi-dates" style="display:none;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fgroup"><label class="lbl">Data início</label><input type="date" class="inp" id="abi-start"/></div>
+        <div class="fgroup"><label class="lbl">Data fim</label><input type="date" class="inp" id="abi-end"/></div>
+      </div>
+    </div>
+    <div class="faction">
+      <button class="btn btn-secondary" onclick="closeModal('auto-billing-inline-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAutoBillingInline()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Mobile sidebar toggle -->
 <button id="sb-mobile-btn" onclick="toggleMobileSidebar()">☰</button>
 <div id="sb-overlay" onclick="closeMobileSidebar()"></div>
@@ -2631,6 +2737,7 @@ let currentReunioesMonth = '';
 let currentPeriod = 'year';
 let periodFrom = '', periodTo = '';
 let editClientId=null,editRevId=null,editExpId=null,editGoalId=null,editMeetingId=null;
+window._farolCsTab=null;
 let deleteCallback=null;
 let clientFilter='',clientStatusFilter='';
 
@@ -2982,7 +3089,7 @@ function nav(p,el){
   const pg=document.getElementById('page-'+p);if(pg){pg.classList.add('active');pg.scrollTop=0;pg.scrollIntoView({block:'start'});}
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
   if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',clientes:'Clientes','gestor-dashboard':'Minha carteira','cliente-detalhe':'Detalhe do cliente',usuarios:'Usuários',cobrancas:'Cobranças',financeiro:'Financeiro',metas:'Metas',reunioes:'Reuniões',crescimento:'Crescimento','vendas-pontuais':'Vendas Pontuais',configuracoes:'Configurações',crm:'CRM — Gestão de Leads','google-ads':'Google Ads — Resultados'};
+  const titles={dashboard:'Dashboard',clientes:'Clientes','gestor-dashboard':'Minha carteira','cliente-detalhe':'Detalhe do cliente',usuarios:'Usuários',cobrancas:'Cobranças',financeiro:'Financeiro',metas:'Metas',reunioes:'Reuniões',crescimento:'Crescimento','vendas-pontuais':'Vendas Pontuais',configuracoes:'Configurações',crm:'CRM — Gestão de Leads','google-ads':'Google Ads — Resultados','farol-admin':'🚦 Farol & CS'};
   document.getElementById('page-title').textContent=titles[p]||p;
   if(p==='dashboard')renderDashboard();
   if(p==='clientes')renderClients();
@@ -2998,6 +3105,7 @@ function nav(p,el){
   if(p==='crm')renderCrm();
   if(p==='cs')renderCs();
   if(p==='google-ads')renderGoogleAds();
+  if(p==='farol-admin')renderFarolAdmin();
 }
 
 // ══════════════════════════════════════════════════════
@@ -4253,6 +4361,48 @@ function toggleAutoBillingFields(){
   if(lbl)    lbl.style.color=on?'#16a34a':'var(--text-2)';
 }
 
+// ── Cob. Automática inline edit (tabela cobranças) ──
+let _abiClientId=null;
+let _abiOn=false;
+function openAutoBillingInline(clientId){
+  const c=clients.find(x=>x.id===clientId);
+  if(!c)return;
+  _abiClientId=clientId;
+  _abiOn=!!c.auto_billing;
+  document.getElementById('abi-client-name').textContent=c.company_name;
+  document.getElementById('abi-start').value=c.auto_billing_start||'';
+  document.getElementById('abi-end').value=c.auto_billing_end||'';
+  _abiRefreshUI();
+  openModal('auto-billing-inline-modal');
+}
+function _abiRefreshUI(){
+  const track=document.getElementById('abi-track');
+  const thumb=document.getElementById('abi-thumb');
+  const lbl=document.getElementById('abi-status-lbl');
+  const dates=document.getElementById('abi-dates');
+  if(track) track.style.background=_abiOn?'#16a34a':'var(--border-md)';
+  if(thumb) thumb.style.left=_abiOn?'21px':'3px';
+  if(lbl)   lbl.textContent=_abiOn?'Cadastrado na cobrança automática':'Não cadastrado na cobrança automática';
+  if(lbl)   lbl.style.color=_abiOn?'#16a34a':'var(--text-3)';
+  if(dates) dates.style.display=_abiOn?'grid':'none';
+}
+function abiToggle(){
+  _abiOn=!_abiOn;
+  _abiRefreshUI();
+}
+function saveAutoBillingInline(){
+  const c=clients.find(x=>x.id===_abiClientId);
+  if(!c)return;
+  c.auto_billing=_abiOn;
+  c.auto_billing_start=_abiOn?(document.getElementById('abi-start').value||''):'';
+  c.auto_billing_end=_abiOn?(document.getElementById('abi-end').value||''):'';
+  saveAll();
+  closeModal('auto-billing-inline-modal');
+  showToast(_abiOn?'✅ Cobrança automática ativada':'Cobrança automática desativada');
+  renderCobTable();
+  renderCobCards();
+}
+
 function saveClient(){
   const company=document.getElementById('cf-company').value.trim();
   if(!company){showToast('Nome da empresa é obrigatório');return}
@@ -4638,14 +4788,16 @@ function renderCobTable(){
       </td>
       <td class="td2">${r.paidAt?fmtDate(r.paidAt):'—'}</td>
       <td>${(()=>{const m=cobMethodMeta(r.payMethod||r.client.payment_method||'');return r.payMethod||r.client.payment_method?`<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:${m.bg};color:${m.color};border:1px solid ${m.border};white-space:nowrap">${m.icon} ${m.label}</span>`:'<span style="color:var(--text-3);font-size:12px">—</span>';})()}</td>
-      <td>${(()=>{
+      <td style="min-width:160px">${(()=>{
         const ab=r.client.auto_billing;
         const abS=r.client.auto_billing_start;
         const abE=r.client.auto_billing_end;
         const fmtD=d=>d?d.split('-').reverse().join('/'):'?';
-        if(!ab) return`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);white-space:nowrap"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Não</span>`;
-        const range=abS&&abE?`<div style="font-size:9px;color:#16a34a;margin-top:2px">${fmtD(abS)} → ${fmtD(abE)}</div>`:'';
-        return`<div><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.25);white-space:nowrap"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Ativa</span>${range}</div>`;
+        const badge=ab
+          ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.25);cursor:pointer" onclick="openAutoBillingInline('${r.client.id}')"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Ativa ✎</span>`
+          : `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600;background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);cursor:pointer" onclick="openAutoBillingInline('${r.client.id}')"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Não ✎</span>`;
+        const range=ab&&abS&&abE?`<div style="font-size:9px;color:#16a34a;margin-top:2px">${fmtD(abS)} → ${fmtD(abE)}</div>`:'';
+        return`<div>${badge}${range}</div>`;
       })()}</td>
       <td><span class="badge ${info.cls}">${info.label}</span></td>
       <td><span style="font-size:12px;font-weight:600;color:${daysColor}">${daysLabel}</span></td>
@@ -5412,23 +5564,56 @@ function renderCrescimento(){
 const VP_TIPOS={landing_page:'Landing Page',crm:'CRM / Automação',setup:'Setup de campanha',consultoria:'Consultoria',criativo:'Criativos',site:'Site / Blog',outro:'Outro'};
 let editVpId=null;
 
+function vpOnPeriodTypeChange(){
+  const t=document.getElementById('vp-period-type')?.value||'all';
+  const mp=document.getElementById('vp-month-pick');
+  const rp=document.getElementById('vp-range-pick');
+  if(mp) mp.style.display=t==='month'?'block':'none';
+  if(rp) rp.style.display=t==='range'?'flex':'none';
+  renderVendasPontuais();
+}
+
 function renderVendasPontuais(){
-  const pago=vendasPontuais.filter(v=>v.status==='pago').reduce((a,v)=>a+Number(v.valor||0),0);
-  const pendente=vendasPontuais.filter(v=>v.status==='pendente').reduce((a,v)=>a+Number(v.valor||0),0);
-  document.getElementById('vp-sub').textContent=`${vendasPontuais.length} venda${vendasPontuais.length!==1?'s':''} · ${fmt(pago+pendente)} total`;
+  // Build filtered set
+  const periodType=document.getElementById('vp-period-type')?.value||'all';
+  const vpMonth=document.getElementById('vp-month')?.value||'';
+  const vpFrom=document.getElementById('vp-date-from')?.value||'';
+  const vpTo=document.getElementById('vp-date-to')?.value||'';
+  const vpSearch=(document.getElementById('vp-search')?.value||'').toLowerCase();
+  const vpStatus=document.getElementById('vp-status-filter')?.value||'';
+
+  let filtered=[...vendasPontuais];
+
+  // Period filter
+  if(periodType==='month'&&vpMonth){
+    filtered=filtered.filter(v=>(v.data||'').startsWith(vpMonth));
+  } else if(periodType==='range'){
+    if(vpFrom) filtered=filtered.filter(v=>(v.data||'')>=vpFrom);
+    if(vpTo)   filtered=filtered.filter(v=>(v.data||'')<=vpTo);
+  }
+  // Search filter
+  if(vpSearch) filtered=filtered.filter(v=>(v.servico||'').toLowerCase().includes(vpSearch)||(v.cliente||'').toLowerCase().includes(vpSearch));
+  // Status filter
+  if(vpStatus) filtered=filtered.filter(v=>v.status===vpStatus);
+
+  const pago=filtered.filter(v=>v.status==='pago').reduce((a,v)=>a+Number(v.valor||0),0);
+  const pendente=filtered.filter(v=>v.status==='pendente').reduce((a,v)=>a+Number(v.valor||0),0);
+  const periodLabel=periodType==='month'&&vpMonth?` · ${vpMonth.split('-').reverse().join('/')}`
+    :periodType==='range'&&(vpFrom||vpTo)?` · ${vpFrom?vpFrom.split('-').reverse().join('/'):'?'} → ${vpTo?vpTo.split('-').reverse().join('/'):'?'}`:'';
+  document.getElementById('vp-sub').textContent=`${filtered.length} venda${filtered.length!==1?'s':''}${periodLabel} · ${fmt(pago+pendente)} total`;
   document.getElementById('vp-kpis').innerHTML=[
     {l:'Total recebido',v:fmt(pago),s:'Vendas pagas'},
     {l:'A receber',v:fmt(pendente),s:'Vendas pendentes'},
-    {l:'Total de vendas',v:vendasPontuais.length,s:'Todas as vendas'},
-    {l:'Ticket médio',v:vendasPontuais.length?fmt(Math.round((pago+pendente)/vendasPontuais.length)):fmt(0),s:'Por venda'},
+    {l:'Total de vendas',v:filtered.length,s:'Filtradas'},
+    {l:'Ticket médio',v:filtered.length?fmt(Math.round((pago+pendente)/filtered.length)):fmt(0),s:'Por venda'},
   ].map(m=>`<div class="mc"><div class="mc-label">${m.l}</div><div class="mc-value" style="font-size:18px">${m.v}</div><div class="mc-sub">${m.s}</div></div>`).join('');
   const tb=document.getElementById('vp-tbody');
-  if(!vendasPontuais.length){
-    tb.innerHTML=`<tr><td colspan="8"><div style="text-align:center;padding:40px;color:var(--text-3)"><p style="font-size:14px;font-weight:500;margin-bottom:4px">Nenhuma venda pontual registrada</p><span style="font-size:12px">Clique em "Nova venda" para adicionar</span></div></td></tr>`;return;
+  if(!filtered.length){
+    tb.innerHTML=`<tr><td colspan="8"><div style="text-align:center;padding:40px;color:var(--text-3)"><p style="font-size:14px;font-weight:500;margin-bottom:4px">${vendasPontuais.length?'Nenhuma venda encontrada para este filtro':'Nenhuma venda pontual registrada'}</p><span style="font-size:12px">${vendasPontuais.length?'Ajuste o período ou busca':'Clique em "Nova venda" para adicionar'}</span></div></td></tr>`;return;
   }
   const td='padding:10px 16px;border-bottom:1px solid var(--border);vertical-align:middle;';
   const statusBadge={pago:'<span class="badge b-green">Pago</span>',pendente:'<span class="badge b-yellow">Pendente</span>',parcelado:'<span class="badge b-blue">Parcelado</span>',cancelado:'<span class="badge b-red">Cancelado</span>'};
-  tb.innerHTML=[...vendasPontuais].sort((a,b)=>(b.data||'').localeCompare(a.data||'')).map(v=>`<tr>
+  tb.innerHTML=[...filtered].sort((a,b)=>(b.data||'').localeCompare(a.data||'')).map(v=>`<tr>
     <td style="${td}font-size:13px;font-weight:600;color:var(--text)">${v.servico||'—'}</td>
     <td style="${td}font-size:13px;color:var(--text-2)">${v.cliente||'—'}</td>
     <td style="${td}"><span style="font-size:11px;background:var(--surface-2);padding:2px 8px;border-radius:10px;color:var(--text-2)">${VP_TIPOS[v.tipo]||v.tipo||'—'}</span></td>
@@ -7103,6 +7288,155 @@ function salvarTrilhaMesInline(idx){
 // ══════════════════════════════════════════════════════
 // CUSTOMER SUCCESS
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// FAROL ADMIN — visão de carteiras por CS
+// ══════════════════════════════════════════════════════
+function renderFarolAdmin(){
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const ativos=clients.filter(c=>c.status==='ativo');
+
+  // KPIs globais
+  const saudavel=ativos.filter(c=>c.churn_risk==='baixo').length;
+  const atencao=ativos.filter(c=>c.churn_risk==='medio').length;
+  const risco=ativos.filter(c=>c.churn_risk==='alto').length;
+  const semFarol=ativos.filter(c=>!c.churn_risk).length;
+  document.getElementById('farol-admin-kpis').innerHTML=[
+    {l:'🟢 Saudáveis',v:saudavel,s:'Farol verde'},
+    {l:'🟡 Atenção',v:atencao,s:'Farol amarelo'},
+    {l:'🔴 Em risco',v:risco,s:'Farol vermelho'},
+    {l:'⬜ Sem farol',v:semFarol,s:'Não classificado'},
+    {l:'👥 Total ativos',v:ativos.length,s:'Clientes ativos'},
+  ].map(m=>`<div class="mc"><div class="mc-label">${m.l}</div><div class="mc-value" style="font-size:20px">${m.v}</div><div class="mc-sub">${m.s}</div></div>`).join('');
+
+  // Lista de CS
+  const csList=systemUsers.filter(u=>u.level==='cs');
+
+  // Tabs de CS
+  const tabsEl=document.getElementById('farol-cs-tabs');
+  tabsEl.innerHTML=`
+    <button class="btn ${!window._farolCsTab?'btn-primary':'btn-secondary'}" onclick="_farolCsTab=null;renderFarolAdmin()" style="font-size:12px">Todos</button>
+    ${csList.map(u=>`<button class="btn ${window._farolCsTab===u.id?'btn-primary':'btn-secondary'}" onclick="_farolCsTab='${u.id}';renderFarolAdmin()" style="font-size:12px">👤 ${u.name}</button>`).join('')}
+    ${!csList.length?'<span style="font-size:12px;color:var(--text-3);align-self:center">Nenhuma CS cadastrada. Adicione usuários com nível CS.</span>':''}
+  `;
+
+  // Body
+  const body=document.getElementById('farol-admin-body');
+  if(!csList.length){
+    body.innerHTML=`<div class="card cp" style="text-align:center;padding:40px;color:var(--text-3)"><p style="margin-bottom:8px;font-size:14px">Nenhum usuário CS encontrado</p><span style="font-size:12px">Cadastre usuários com nível "CS" em Sistema → Usuários</span></div>`;
+    return;
+  }
+
+  const displayCs=window._farolCsTab?csList.filter(u=>u.id===window._farolCsTab):csList;
+  const farolColor={baixo:'#16a34a',medio:'#d97706',alto:'#dc2626'};
+  const farolIcon={baixo:'🟢',medio:'🟡',alto:'🔴'};
+
+  body.innerHTML=displayCs.map(cs=>{
+    const carteira=(ativos.filter(c=>c.cs_id===cs.id));
+    const semCS=!window._farolCsTab&&csList.length===1;
+    return`<div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">👤 ${cs.name}</div>
+          <div style="font-size:12px;color:var(--text-3);margin-top:2px">${carteira.length} cliente${carteira.length!==1?'s':''} na carteira</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="_fcmCsId='${cs.id}';openFarolCsModal('${cs.id}')">✎ Editar carteira</button>
+      </div>
+      ${!carteira.length
+        ? `<div style="text-align:center;padding:24px;color:var(--text-3);font-size:13px">Nenhum cliente atribuído — clique em "Editar carteira" para atribuir.</div>`
+        : `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            ${['Cliente','Farol','Obs / Nota CS','MRR','Contrato'].map(h=>`<th style="text-align:left;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>
+            ${carteira.map(c=>{
+              const fr=c.churn_risk;
+              return`<tr>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--text)">${c.company_name}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border)">
+                  <div style="display:flex;gap:4px;align-items:center">
+                    ${['baixo','medio','alto'].map(n=>`<button onclick="adminSetClientFarol('${c.id}','${n}')" style="width:24px;height:24px;border-radius:6px;border:1.5px solid ${fr===n?farolColor[n]:'var(--border)'};background:${fr===n?`rgba(${n==='baixo'?'22,163,74':n==='medio'?'217,119,6':'220,38,38'},.15)`:'transparent'};cursor:pointer;font-size:12px">${farolIcon[n]}</button>`).join('')}
+                  </div>
+                </td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);max-width:200px">
+                  <input type="text" value="${(c.cs_obs||'').replace(/"/g,'&quot;')}" placeholder="Anotação CS..." style="width:100%;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;background:var(--surface);color:var(--text)" onblur="adminSaveClientCsObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
+                </td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--brand);font-weight:700">${fmt(c.monthly_value||0)}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-3)">${c.contract_end?c.contract_end.split('-').reverse().join('/'):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`
+      }
+    </div>`;
+  }).join('');
+
+  // Clientes sem CS atribuída
+  const semCsClients=ativos.filter(c=>!c.cs_id||!csList.find(u=>u.id===c.cs_id));
+  if(semCsClients.length&&!window._farolCsTab){
+    body.innerHTML+=`<div class="card" style="margin-bottom:16px;border:1px dashed var(--border)">
+      <div style="font-size:13px;font-weight:700;color:var(--text-3);margin-bottom:8px">⚠️ Clientes sem CS atribuída (${semCsClients.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${semCsClients.map(c=>`<span style="font-size:12px;padding:4px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-2)">${c.company_name}</span>`).join('')}
+      </div>
+    </div>`;
+  }
+}
+
+function adminSetClientFarol(clientId,nivel){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  c.churn_risk=nivel;saveAll();renderFarolAdmin();showToast('Farol atualizado');
+}
+function adminSaveClientCsObs(clientId,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  c.cs_obs=val;saveAll();
+}
+
+let _fcmCsId=null;
+function openFarolCsModal(csId){
+  _fcmCsId=csId||null;
+  const sel=document.getElementById('fcm-cs-select');
+  if(!sel)return;
+  const csList=systemUsers.filter(u=>u.level==='cs');
+  sel.innerHTML='<option value="">-- Selecione --</option>'+csList.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+  if(_fcmCsId) sel.value=_fcmCsId;
+  loadFarolCsAssign();
+  openModal('farol-cs-modal');
+}
+function loadFarolCsAssign(){
+  const csId=document.getElementById('fcm-cs-select')?.value||'';
+  _fcmCsId=csId;
+  const list=document.getElementById('fcm-assign-list');
+  if(!list)return;
+  const ativos=clients.filter(c=>c.status==='ativo');
+  if(!csId){list.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px">Selecione uma CS acima</div>`;return;}
+  list.innerHTML=ativos.map(c=>{
+    const checked=c.cs_id===csId;
+    return`<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid ${checked?'var(--brand)':'var(--border)'};border-radius:8px;cursor:pointer;background:${checked?'rgba(var(--brand-rgb),.06)':'var(--surface)'}">
+      <input type="checkbox" data-client="${c.id}" ${checked?'checked':''} style="width:15px;height:15px;accent-color:var(--brand)"/>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${c.company_name}</div>
+        <div style="font-size:11px;color:var(--text-3)">${fmt(c.monthly_value||0)}/mês${c.cs_id&&c.cs_id!==csId?' · já atribuído a outra CS':''}</div>
+      </div>
+    </label>`;
+  }).join('');
+}
+function saveFarolCsAssign(){
+  const csId=_fcmCsId;
+  if(!csId){showToast('Selecione uma CS primeiro');return;}
+  const list=document.getElementById('fcm-assign-list');
+  const checks=list.querySelectorAll('input[type=checkbox]');
+  checks.forEach(cb=>{
+    const c=clients.find(x=>x.id===cb.dataset.client);
+    if(!c)return;
+    if(cb.checked) c.cs_id=csId;
+    else if(c.cs_id===csId) c.cs_id=null;
+  });
+  saveAll();
+  closeModal('farol-cs-modal');
+  showToast('✅ Carteira salva!');
+  renderFarolAdmin();
+}
+
 function renderCs(){
   const body=document.getElementById('cs-body');
   const sub=document.getElementById('cs-sub');
