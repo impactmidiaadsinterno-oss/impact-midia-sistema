@@ -602,7 +602,7 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       </button>
       <!-- SDR only -->
       <div class="nav-sep cs-only" style="display:none">CS</div>
-      <button class="nav-item cs-only" id="nav-cs" onclick="nav('cs-farol',this)" style="display:none">
+      <button class="nav-item cs-only" id="nav-cs" onclick="nav('cs',this)" style="display:none">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         Minha Carteira
       </button>
@@ -6047,8 +6047,8 @@ function initApp(){
     nav('crm',document.getElementById('nav-crm'));
     try{renderCrm();}catch(err){console.error('renderCrm error:',err);}
   } else if(isCs){
-    nav('cs-farol',document.getElementById('nav-cs'));
-    try{renderCsFarolPage();}catch(err){console.error('renderCsFarolPage error:',err);}
+    nav('cs',document.getElementById('nav-cs'));
+    try{renderCs();}catch(err){console.error('renderCs error:',err);}
   } else {
     nav('gestor-dashboard',document.getElementById('nav-dashboard'));
     try{renderGestorDashboard();}catch(err){console.error('renderGestorDashboard error:',err);}
@@ -7596,7 +7596,13 @@ function renderCs(){
   if(!body)return;
 
   const hoje=new Date();hoje.setHours(0,0,0,0);
-  const ativos=clients.filter(c=>c.status==='ativo');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  // Atualiza título da página para CS logada
+  if(isCs){
+    const st=document.querySelector('#page-cs .st');
+    if(st)st.textContent='Minha Carteira — '+currentSystemUser.name;
+  }
 
   // Calcular alertas CS
   const semOnboarding=ativos.filter(c=>!c.cd_cs?.onboarding_feito);
