@@ -1409,8 +1409,11 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
   <div class="sh">
     <div><div class="st">🚦 Farol &amp; CS</div><div class="ss">Controle de carteiras e status dos clientes por CS</div></div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="openNewCsUser()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova CS
+      </button>
       <button class="btn btn-primary" onclick="openFarolCsModal()">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Gerenciar CS
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>Atribuir clientes
       </button>
     </div>
   </div>
@@ -2278,6 +2281,7 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
         <select class="inp" id="uf-level">
           <option value="gestor">Gestor — vê apenas seus clientes</option>
           <option value="admin">Administrador — acesso total</option>
+          <option value="cs">CS — Customer Success</option>
           <option value="sdr">SDR — apenas CRM/Leads</option>
         </select>
       </div>
@@ -7322,7 +7326,12 @@ function renderFarolAdmin(){
   // Body
   const body=document.getElementById('farol-admin-body');
   if(!csList.length){
-    body.innerHTML=`<div class="card cp" style="text-align:center;padding:40px;color:var(--text-3)"><p style="margin-bottom:8px;font-size:14px">Nenhum usuário CS encontrado</p><span style="font-size:12px">Cadastre usuários com nível "CS" em Sistema → Usuários</span></div>`;
+    body.innerHTML=`<div class="card cp" style="text-align:center;padding:48px 40px;color:var(--text-3)">
+      <div style="font-size:32px;margin-bottom:12px">👤</div>
+      <p style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Nenhuma CS cadastrada</p>
+      <p style="font-size:12px;margin-bottom:20px">Crie o primeiro usuário com nível CS para começar a organizar as carteiras.</p>
+      <button class="btn btn-primary" onclick="openNewCsUser()"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Cadastrar primeira CS</button>
+    </div>`;
     return;
   }
 
@@ -7382,6 +7391,23 @@ function renderFarolAdmin(){
   }
 }
 
+function openNewCsUser(){
+  // Abre modal de novo usuário com nível CS pré-selecionado
+  openUserModal(null);
+  // Após abrir, seta o nível para cs
+  setTimeout(()=>{
+    const sel=document.getElementById('uf-level');
+    if(sel) sel.value='cs';
+    // Quando salvar, volta para farol-admin
+    const origSave=window._origSaveUser;
+    if(!origSave){
+      window._origSaveUserCallback=()=>{
+        setTimeout(()=>{nav('farol-admin',document.getElementById('nav-farol-admin'));},100);
+      };
+    }
+  },50);
+}
+
 function adminSetClientFarol(clientId,nivel){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
   c.churn_risk=nivel;saveAll();renderFarolAdmin();showToast('Farol atualizado');
@@ -7397,7 +7423,7 @@ function openFarolCsModal(csId){
   const sel=document.getElementById('fcm-cs-select');
   if(!sel)return;
   const csList=systemUsers.filter(u=>u.level==='cs');
-  sel.innerHTML='<option value="">-- Selecione --</option>'+csList.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+  sel.innerHTML='<option value="">-- Selecione a CS --</option>'+csList.map(u=>`<option value="${u.id}">${u.name} (${clients.filter(c=>c.cs_id===u.id&&c.status==='ativo').length} clientes)</option>`).join('');
   if(_fcmCsId) sel.value=_fcmCsId;
   loadFarolCsAssign();
   openModal('farol-cs-modal');
@@ -7408,17 +7434,31 @@ function loadFarolCsAssign(){
   const list=document.getElementById('fcm-assign-list');
   if(!list)return;
   const ativos=clients.filter(c=>c.status==='ativo');
-  if(!csId){list.innerHTML=`<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px">Selecione uma CS acima</div>`;return;}
-  list.innerHTML=ativos.map(c=>{
+  if(!csId){
+    list.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text-3);font-size:13px">Selecione uma CS acima para ver e editar a carteira</div>`;
+    return;
+  }
+  const csName=systemUsers.find(u=>u.id===csId)?.name||'CS';
+  const farolIcon={baixo:'🟢',medio:'🟡',alto:'🔴'};
+  const myClients=ativos.filter(c=>c.cs_id===csId);
+  const othersClients=ativos.filter(c=>c.cs_id&&c.cs_id!==csId);
+  const noCs=ativos.filter(c=>!c.cs_id);
+
+  let html=`<div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding:0 2px">Carteira atual de ${csName} (${myClients.length})</div>`;
+  html+=ativos.map(c=>{
     const checked=c.cs_id===csId;
-    return`<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid ${checked?'var(--brand)':'var(--border)'};border-radius:8px;cursor:pointer;background:${checked?'rgba(var(--brand-rgb),.06)':'var(--surface)'}">
-      <input type="checkbox" data-client="${c.id}" ${checked?'checked':''} style="width:15px;height:15px;accent-color:var(--brand)"/>
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--text)">${c.company_name}</div>
-        <div style="font-size:11px;color:var(--text-3)">${fmt(c.monthly_value||0)}/mês${c.cs_id&&c.cs_id!==csId?' · já atribuído a outra CS':''}</div>
+    const otherCs=c.cs_id&&c.cs_id!==csId?systemUsers.find(u=>u.id===c.cs_id):null;
+    const farol=c.churn_risk?farolIcon[c.churn_risk]:'⬜';
+    return`<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid ${checked?'var(--brand)':'var(--border)'};border-radius:8px;cursor:pointer;background:${checked?'rgba(37,99,235,.06)':'var(--surface)'};transition:.15s">
+      <input type="checkbox" data-client="${c.id}" ${checked?'checked':''} style="width:15px;height:15px;accent-color:var(--brand);flex-shrink:0"/>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px">${farol} ${c.company_name}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:1px">${fmt(c.monthly_value||0)}/mês${otherCs?` · <span style="color:#d97706">já com ${otherCs.name}</span>`:''}${!c.cs_id?' · <span style="color:var(--text-3)">sem CS</span>':''}</div>
       </div>
+      ${checked?`<span style="font-size:10px;font-weight:700;color:var(--brand);background:rgba(37,99,235,.1);padding:2px 7px;border-radius:99px;white-space:nowrap">Na carteira</span>`:''}
     </label>`;
   }).join('');
+  list.innerHTML=html;
 }
 function saveFarolCsAssign(){
   const csId=_fcmCsId;
@@ -9572,8 +9612,8 @@ function renderUsers(){
           style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:12px;padding:2px">📋</button>
       </div>
     </td>
-    <td>${u.level==='admin'?'<span class="badge b-purple">Admin</span>':u.level==='sdr'?'<span class="badge b-orange">SDR</span>':'<span class="badge b-blue">Gestor</span>'}</td>
-    <td class="td2">${clients.filter(c=>clientBelongsTo(c,u)&&c.status==='ativo').length} clientes ativos</td>
+    <td>${u.level==='admin'?'<span class="badge b-purple">Admin</span>':u.level==='sdr'?'<span class="badge b-orange">SDR</span>':u.level==='cs'?'<span class="badge b-green">CS</span>':'<span class="badge b-blue">Gestor</span>'}</td>
+    <td class="td2">${u.level==='cs'?`${clients.filter(c=>c.cs_id===u.id&&c.status==='ativo').length} clientes na carteira CS`:clients.filter(c=>clientBelongsTo(c,u)&&c.status==='ativo').length+' clientes ativos'}</td>
     <td><div style="display:flex;gap:4px">
       <button class="btn btn-secondary btn-sm" onclick="openUserModal('${u.id}')"><svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
       ${u.id!==currentSystemUser?.id?`<button class="btn btn-danger btn-sm" onclick="delUser('${u.id}')"><svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>`:''}
