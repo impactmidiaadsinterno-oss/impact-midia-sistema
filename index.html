@@ -6610,7 +6610,10 @@ function openClientDetail(id){
 }
 
 function voltarClientes(){
-  if(currentSystemUser&&(currentSystemUser.level==='gestor'||currentSystemUser.level==='cs')){
+  if(currentSystemUser&&currentSystemUser.level==='cs'){
+    nav('cs',document.getElementById('nav-cs'));
+    try{renderCs();}catch(e){console.error(e);}
+  } else if(currentSystemUser&&currentSystemUser.level==='gestor'){
     nav('gestor-dashboard',document.getElementById('nav-dashboard'));
     renderGestorDashboard();
   } else {
