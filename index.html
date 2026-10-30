@@ -6452,7 +6452,18 @@ function renderGestorDashboard(){
       const onbPct=Math.round(onbDone/allTasks.length*100);
       // Proxima reuniao
       const reuniao=c.cd_proxima_reuniao?c.cd_proxima_reuniao.split('-').reverse().join('/'):'—';
-      return`<div class="gestor-client-card" onclick="openClientDetail('${c.id}')">
+      // Dias restantes do contrato
+      let diasContrato=null,diasContratoLabel='',diasContratoColor='var(--text-3)';
+      if(c.start_date&&c.contract_months){
+        const exp=new Date(c.start_date+'T00:00:00');
+        exp.setMonth(exp.getMonth()+Number(c.contract_months));
+        const hoje3=new Date();hoje3.setHours(0,0,0,0);
+        diasContrato=Math.round((exp-hoje3)/(1000*60*60*24));
+        if(diasContrato<0){diasContratoLabel='Vencido';diasContratoColor='#dc2626';}
+        else if(diasContrato<=30){diasContratoLabel=`⚠️ ${diasContrato}d restantes`;diasContratoColor='#d97706';}
+        else{diasContratoLabel=`${diasContrato}d restantes`;diasContratoColor='#16a34a';}
+      }
+      return`<div class="gestor-client-card" style="cursor:pointer;transition:.15s" onclick="openClientDetail('${c.id}')" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow=''">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:8px">
           <div style="min-width:0">
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">${c.company_name}</div>
@@ -6479,17 +6490,23 @@ function renderGestorDashboard(){
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:10px;border-top:1px solid var(--border)">
           <div>
-            <div style="font-size:10px;color:var(--text-3);margin-bottom:2px">Responsável</div>
-            <div style="font-size:12px;font-weight:500;color:var(--text)">${c.contact_name||'—'}</div>
-          </div>
-          <div>
             <div style="font-size:10px;color:var(--text-3);margin-bottom:2px">Próxima reunião</div>
             <div style="font-size:12px;font-weight:500;color:var(--text)">${reuniao}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text-3);margin-bottom:2px">Contrato</div>
+            <div style="font-size:12px;font-weight:600;color:${diasContratoColor}">${diasContrato!==null?diasContratoLabel:'Não definido'}</div>
           </div>
           ${c.cd_proxima_acao?`<div style="grid-column:span 2">
             <div style="font-size:10px;color:var(--text-3);margin-bottom:2px">Próxima ação</div>
             <div style="font-size:12px;font-weight:500;color:var(--brand)">${c.cd_proxima_acao}</div>
           </div>`:''}
+        </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+          <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;gap:6px" onclick="event.stopPropagation();openClientDetail('${c.id}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Ver todas as informações
+          </button>
         </div>
       </div>`;
     }).join('')
