@@ -988,6 +988,10 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
     </div>
   </div>
   <div class="card cp" style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:14px">📅 Agenda de reuniões</div>
+    <div id="gestor-agenda-list"></div>
+  </div>
+  <div class="card cp" style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:600;margin-bottom:14px">Meus clientes</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px" id="gestor-clients-list"></div>
   </div>
@@ -6355,6 +6359,9 @@ function navDashboard(el){
     nav('dashboard',el);
   } else if(currentSystemUser?.level==='sdr'){
     nav('crm',document.getElementById('nav-crm'));
+  } else if(currentSystemUser?.level==='cs'){
+    nav('gestor-dashboard',el);
+    try{renderGestorDashboard();}catch(e){console.error(e);}
   } else {
     nav('gestor-dashboard',el);
   }
@@ -6364,7 +6371,8 @@ function renderGestorDashboard(){
   const u=currentSystemUser;
   if(!u)return;
 
-  const myClients=clients.filter(c=>clientBelongsTo(c,u));
+  const isCs=u.level==='cs';
+  const myClients=isCs?clients.filter(c=>c.cs_id===u.id):clients.filter(c=>clientBelongsTo(c,u));
   const active=myClients.filter(c=>c.status==='ativo');
   const paused=myClients.filter(c=>c.status==='pausado');
   const atRisk=active.filter(c=>c.cd_health==='risco');
@@ -6486,6 +6494,68 @@ function renderGestorDashboard(){
       </div>`;
     }).join('')
     :'<div style="font-size:13px;color:var(--text-3);padding:24px 0;text-align:center">Nenhum cliente cadastrado ainda.<br>O administrador irá atribuir clientes a você.</div>';
+
+  // ── Agenda de reuniões ──
+  const agendaEl=document.getElementById('gestor-agenda-list');
+  if(agendaEl){
+    const hoje2=new Date();hoje2.setHours(0,0,0,0);
+    // Coleta reuniões de todas as fontes: cd_proxima_reuniao e meetings array
+    const reunioes=[];
+    myClients.forEach(c=>{
+      // Próxima reunião do campo direto
+      if(c.cd_proxima_reuniao){
+        const d=new Date(c.cd_proxima_reuniao+'T00:00:00');
+        reunioes.push({date:d,client:c,label:c.cd_proxima_reuniao_tipo||'Reunião',source:'cd'});
+      }
+      // Reuniões do array meetings
+      if(Array.isArray(c.meetings)){
+        c.meetings.forEach(m=>{
+          if(!m.date)return;
+          const d=new Date(m.date+'T'+(m.time||'00:00')+':00');
+          if(d>=hoje2) reunioes.push({date:d,client:c,label:m.type||m.title||'Reunião',source:'meeting',time:m.time});
+        });
+      }
+    });
+    // Ordena por data
+    reunioes.sort((a,b)=>a.date-b.date);
+    // Mostra próximas 30 dias
+    const limite=new Date(hoje2);limite.setDate(limite.getDate()+30);
+    const proximas=reunioes.filter(r=>r.date>=hoje2&&r.date<=limite);
+    const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    if(!proximas.length){
+      agendaEl.innerHTML='<div style="font-size:13px;color:var(--text-3);padding:16px 0">Nenhuma reunião agendada nos próximos 30 dias.</div>';
+    } else {
+      // Agrupa por data
+      const byDay={};
+      proximas.forEach(r=>{
+        const k=r.date.toISOString().slice(0,10);
+        if(!byDay[k])byDay[k]=[];
+        byDay[k].push(r);
+      });
+      agendaEl.innerHTML=Object.entries(byDay).map(([dateStr,items])=>{
+        const d=new Date(dateStr+'T00:00:00');
+        const isHoje=dateStr===hoje2.toISOString().slice(0,10);
+        const amanha=new Date(hoje2);amanha.setDate(amanha.getDate()+1);
+        const isAmanha=dateStr===amanha.toISOString().slice(0,10);
+        const labelDia=isHoje?'Hoje':isAmanha?'Amanhã':DIAS[d.getDay()];
+        return`<div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:${isHoje?'var(--brand)':'var(--text-3)'};text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">
+            ${labelDia} · ${d.getDate()} ${MESES[d.getMonth()]}
+          </div>
+          ${items.map(r=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:.15s" onclick="openClientDetail('${r.client.id}')" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--surface-2)'">
+              <div style="width:32px;height:32px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">📅</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:var(--text)">${r.client.company_name}</div>
+                <div style="font-size:11px;color:var(--text-3)">${r.label}${r.time?' · '+r.time:''}</div>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>`).join('')}
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -6523,9 +6593,7 @@ function openClientDetail(id){
 }
 
 function voltarClientes(){
-  // Restore padding on content
-  
-  if(currentSystemUser&&currentSystemUser.level==='gestor'){
+  if(currentSystemUser&&(currentSystemUser.level==='gestor'||currentSystemUser.level==='cs')){
     nav('gestor-dashboard',document.getElementById('nav-dashboard'));
     renderGestorDashboard();
   } else {
