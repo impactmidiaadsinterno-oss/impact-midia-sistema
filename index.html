@@ -602,9 +602,9 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       </button>
       <!-- SDR only -->
       <div class="nav-sep cs-only" style="display:none">CS</div>
-      <button class="nav-item cs-only" id="nav-cs" onclick="nav('cs',this)" style="display:none">
-        <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        Customer Success
+      <button class="nav-item cs-only" id="nav-cs" onclick="nav('cs-farol',this)" style="display:none">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Minha Carteira
       </button>
       <button class="nav-item sdr-only" id="nav-crm" onclick="nav('crm',this)">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/></svg>CRM / Leads
@@ -2309,6 +2309,17 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
 </div>
 
 <!-- CUSTOMER SUCCESS PAGE -->
+<!-- Página CS: Farol da própria carteira -->
+<div class="page" id="page-cs-farol" style="padding-bottom:60px">
+  <div class="sh">
+    <div><div class="st" id="cs-farol-title">🚦 Minha Carteira</div><div class="ss" id="cs-farol-sub">Farol e clientes sob minha gestão</div></div>
+  </div>
+  <!-- KPI row -->
+  <div id="cs-farol-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px"></div>
+  <!-- Body com cards dos clientes -->
+  <div id="cs-farol-body"></div>
+</div>
+
 <div class="page" id="page-cs" style="padding-bottom:60px">
   <div class="sh">
     <div><div class="st">Customer Success</div><div class="ss" id="cs-sub">Gestão da carteira de clientes</div></div>
@@ -3108,6 +3119,7 @@ function nav(p,el){
   if(p==='configuracoes'){document.getElementById('cfg-monthly-goal').value=settings.monthlyGoal||50000;document.getElementById('cfg-annual-goal').value=settings.annualGoal||100000;renderBackupInfo();renderLembretes();}
   if(p==='crm')renderCrm();
   if(p==='cs')renderCs();
+  if(p==='cs-farol')renderCsFarolPage();
   if(p==='google-ads')renderGoogleAds();
   if(p==='farol-admin')renderFarolAdmin();
 }
@@ -6033,8 +6045,8 @@ function initApp(){
     nav('crm',document.getElementById('nav-crm'));
     try{renderCrm();}catch(err){console.error('renderCrm error:',err);}
   } else if(isCs){
-    nav('cs',document.getElementById('nav-cs'));
-    try{renderCs();}catch(err){console.error('renderCs error:',err);}
+    nav('cs-farol',document.getElementById('nav-cs'));
+    try{renderCsFarolPage();}catch(err){console.error('renderCsFarolPage error:',err);}
   } else {
     nav('gestor-dashboard',document.getElementById('nav-dashboard'));
     try{renderGestorDashboard();}catch(err){console.error('renderGestorDashboard error:',err);}
@@ -6483,6 +6495,11 @@ function openClientDetail(id){
   if(currentSystemUser&&currentSystemUser.level==='gestor'){
     if(!clientBelongsTo(c,currentSystemUser)){
       showToast('Você não tem acesso a este cliente');return;
+    }
+  }
+  if(currentSystemUser&&currentSystemUser.level==='cs'){
+    if(c.cs_id!==currentSystemUser.id){
+      showToast('Este cliente não está na sua carteira');return;
     }
   }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -7389,6 +7406,99 @@ function renderFarolAdmin(){
       </div>
     </div>`;
   }
+}
+
+// ── Página Farol da CS (visão da própria CS) ──
+function renderCsFarolPage(){
+  const u=currentSystemUser;
+  if(!u)return;
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const minha=clients.filter(c=>c.status==='ativo'&&c.cs_id===u.id);
+
+  // Título
+  const titleEl=document.getElementById('cs-farol-title');
+  const subEl=document.getElementById('cs-farol-sub');
+  if(titleEl)titleEl.textContent=`🚦 Minha Carteira — ${u.name}`;
+  if(subEl)subEl.textContent=`${minha.length} cliente${minha.length!==1?'s':''} sob sua gestão`;
+
+  // KPIs
+  const saudavel=minha.filter(c=>c.churn_risk==='baixo').length;
+  const atencao=minha.filter(c=>c.churn_risk==='medio').length;
+  const risco=minha.filter(c=>c.churn_risk==='alto').length;
+  const semFarol=minha.filter(c=>!c.churn_risk).length;
+  const mrr=minha.reduce((a,c)=>a+Number(c.monthly_value||0),0);
+  document.getElementById('cs-farol-kpis').innerHTML=[
+    {l:'🟢 Saudáveis',v:saudavel,s:'Farol verde'},
+    {l:'🟡 Atenção',v:atencao,s:'Farol amarelo'},
+    {l:'🔴 Em risco',v:risco,s:'Farol vermelho'},
+    {l:'⬜ Sem farol',v:semFarol,s:'Não classificado'},
+    {l:'💰 MRR Total',v:fmt(mrr),s:'Receita da carteira'},
+  ].map(m=>`<div class="mc"><div class="mc-label">${m.l}</div><div class="mc-value" style="font-size:18px">${m.v}</div><div class="mc-sub">${m.s}</div></div>`).join('');
+
+  const body=document.getElementById('cs-farol-body');
+  if(!minha.length){
+    body.innerHTML=`<div class="card cp" style="text-align:center;padding:48px 40px;color:var(--text-3)">
+      <div style="font-size:32px;margin-bottom:12px">👥</div>
+      <p style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Nenhum cliente na sua carteira</p>
+      <p style="font-size:12px">Peça ao administrador para atribuir clientes à sua carteira.</p>
+    </div>`;
+    return;
+  }
+
+  const farolInfo={
+    baixo:{icon:'🟢',label:'Saudável',color:'#16a34a',bg:'rgba(22,163,74,.08)',border:'rgba(22,163,74,.25)'},
+    medio:{icon:'🟡',label:'Atenção',color:'#d97706',bg:'rgba(217,119,6,.08)',border:'rgba(217,119,6,.25)'},
+    alto:{icon:'🔴',label:'Em risco',color:'#dc2626',bg:'rgba(220,38,38,.08)',border:'rgba(220,38,38,.25)'},
+  };
+  const none={icon:'⬜',label:'Sem farol',color:'var(--text-3)',bg:'var(--surface-2)',border:'var(--border)'};
+
+  // Sort: risco > medio > sem farol > baixo
+  const sortOrder={alto:0,medio:1,'':2,baixo:3};
+  const sorted=[...minha].sort((a,b)=>(sortOrder[a.churn_risk||'']||2)-(sortOrder[b.churn_risk||'']||2));
+
+  body.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+    ${sorted.map(c=>{
+      const fi=farolInfo[c.churn_risk]||none;
+      // Próxima reunião
+      const meetings=c.cd_reunioes||[];
+      const proxReu=meetings.filter(r=>r.date>=hoje.toISOString().slice(0,10)).sort((a,b)=>a.date.localeCompare(b.date))[0];
+      // Contrato
+      const contratoDias=c.contract_end?Math.round((new Date(c.contract_end+'T00:00:00')-hoje)/(86400000)):null;
+      const contratoAlert=contratoDias!==null&&contratoDias<=30;
+      return`<div class="card" style="border:1.5px solid ${fi.border};padding:0;overflow:hidden;cursor:pointer" onclick="openClientDetail('${c.id}')">
+        <!-- Header farol -->
+        <div style="background:${fi.bg};border-bottom:1px solid ${fi.border};padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px">${fi.icon}</span>
+            <span style="font-size:11px;font-weight:700;color:${fi.color};text-transform:uppercase;letter-spacing:.05em">${fi.label}</span>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:var(--brand)">${fmt(c.monthly_value||0)}/mês</span>
+        </div>
+        <!-- Corpo -->
+        <div style="padding:14px">
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">${c.company_name}</div>
+          <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">${[c.niche,c.city].filter(Boolean).join(' · ')||'—'}</div>
+          <!-- Infos rápidas -->
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:6px;color:var(--text-2)">
+              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              ${proxReu?`Próx. reunião: <strong>${proxReu.date.split('-').reverse().join('/')}</strong>`:'<span style="color:var(--text-3)">Sem reunião agendada</span>'}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;color:${contratoAlert?'#d97706':'var(--text-2)'}">
+              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              ${c.contract_end?`Contrato: ${c.contract_end.split('-').reverse().join('/')}${contratoAlert?` <strong style="color:#d97706">(${contratoDias}d)</strong>`:''}`:'<span style="color:var(--text-3)">Sem data de contrato</span>'}
+            </div>
+            ${c.cs_obs?`<div style="margin-top:4px;padding:6px 8px;background:var(--surface-2);border-radius:6px;font-size:11px;color:var(--text-2);font-style:italic">"${c.cs_obs}"</div>`:''}
+          </div>
+        </div>
+        <!-- Footer: botão -->
+        <div style="padding:10px 14px;border-top:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:11px;color:var(--text-3)">Clique para ver detalhes completos</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="var(--text-3)" fill="none" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 function openNewCsUser(){
