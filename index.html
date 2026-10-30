@@ -7789,9 +7789,10 @@ function csFilterBy(key){
   csSetTab('carteira',tabBtn||document.querySelector('#cs-body .client-tab'));
   // Store active filter
   window._csActiveFilter=key;
-  // Re-render carteira with filter
+  // Re-render carteira with filter (só clientes da carteira da CS logada)
   const hoje=new Date();
-  const ativos=clients.filter(c=>c.status==='ativo');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
   const filtered=filterCsClients(ativos,key,hoje);
   const el=document.getElementById('cs-tab-carteira');
   if(el)el.innerHTML=renderCsCarteira(filtered,hoje,key);
@@ -7979,7 +7980,8 @@ function csSetFarolStatus(clientId,nivel){
   showToast({baixo:'🟢 Marcado como saudável',medio:'🟡 Marcado como atenção',alto:'🔴 Marcado como em risco'}[nivel]);
   // Re-render apenas o farol completo para atualizar cards e KPIs sem perder estado da página
   const hoje=new Date();
-  const ativos=clients.filter(c2=>c2.status==='ativo');
+  const _isCsU=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c2=>c2.status==='ativo'&&(_isCsU?c2.cs_id===currentSystemUser.id:true));
   const tabFarol=document.getElementById('cs-tab-farol');
   if(tabFarol)tabFarol.innerHTML=renderCsFarol(ativos,hoje);
   // Atualiza KPIs no topo
@@ -8003,7 +8005,7 @@ function renderCsCarteira(ativos,hoje,filterKey){
   const filterLabels={semOnboarding:'Sem onboarding',semBriefing:'Sem briefing',reunMensalPendente:'Reunião pendente',feedbackSemanalPendente:'Feedback pendente',emRisco:'Em risco',renovacaoBreve:'Renovação em 60 dias'};
   const filterBadge=filterKey?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <span style="font-size:11px;background:#e11d48;color:#fff;padding:3px 10px;border-radius:20px;font-weight:600">🔍 Filtro: ${filterLabels[filterKey]||filterKey}</span>
-    <button onclick="csFilterBy(null);renderCsCarteira(clients.filter(c=>c.status==='ativo'),new Date());const el=document.getElementById('cs-tab-carteira');if(el)el.innerHTML=renderCsCarteira(clients.filter(c=>c.status==='ativo'),new Date());" style="font-size:11px;color:var(--text-3);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer">✕ Limpar</button>
+    <button onclick="csFilterBy(null);renderCs();" style="font-size:11px;color:var(--text-3);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer">✕ Limpar</button>
   </div>`:'';
   if(!ativos.length)return filterBadge+'<div style="text-align:center;padding:40px;color:var(--text-3)">Nenhum cliente encontrado para este filtro</div>';
   const html=`<div style="display:flex;flex-direction:column;gap:8px">
@@ -8291,7 +8293,7 @@ function openCsLogModal(){
     <div><label class="lbl">Cliente</label>
       <select class="inp" id="cslog-client" style="margin-top:4px">
         <option value="">Selecione...</option>
-        ${clients.filter(x=>x.status==='ativo').map(x=>`<option value="${x.id}">${x.company_name}</option>`).join('')}
+        ${clients.filter(x=>x.status==='ativo'&&(currentSystemUser?.level==='cs'?x.cs_id===currentSystemUser.id:true)).map(x=>`<option value="${x.id}">${x.company_name}</option>`).join('')}
       </select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div><label class="lbl">Tipo</label>
