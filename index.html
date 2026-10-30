@@ -2813,6 +2813,8 @@ function _applyDataMap(map){
   if(map.settings)settings=map.settings;
   if(map.movements)movements=map.movements;
   if(map.systemUsers&&map.systemUsers.length)systemUsers=map.systemUsers;
+  // Garante usuários obrigatórios mesmo após carregar localStorage antigo
+  _requiredUsers.forEach(u=>{if(!systemUsers.find(x=>x.id===u.id))systemUsers.push(u);});
   if(map.leads)leads=map.leads;
   if(map.lembretes)lembretes=map.lembretes;
 }
@@ -9635,6 +9637,7 @@ function applyBackup(json){
     if(d.settings)settings=d.settings;
     if(d.movements)movements=d.movements;
     if(d.systemUsers&&d.systemUsers.length)systemUsers=d.systemUsers;
+    _requiredUsers.forEach(u=>{if(!systemUsers.find(x=>x.id===u.id))systemUsers.push(u);});
     saveAll();
     showToast('✅ Backup restaurado! Recarregando...',2000);
     setTimeout(()=>location.reload(),2200);
