@@ -2760,6 +2760,35 @@ window._farolCsTab=null;
 let deleteCallback=null;
 let clientFilter='',clientStatusFilter='';
 
+// ── CS Module Extended Data ─────────────────────────────
+let csTasks = S.load('csTasks',[]); // {id, titulo, tipo, clientId, responsavel, prazo, prioridade, status, notas, criado}
+let csOportunidades = S.load('csOportunidades',[]); // {id, clientId, tipo, descricao, valorPotencial, status, responsavel, notas, criado}
+let csNotificacoesResolvidas = S.load('csNotificacoesResolvidas',[]); // array of notification keys
+
+// Fases operacionais do cliente (armazenadas em c.cs_fase)
+const CS_FASES = [
+  {id:'f1',label:'Contrato assinado',cor:'#6b7280'},
+  {id:'f2',label:'Aguardando onboarding',cor:'#8b5cf6'},
+  {id:'f3',label:'Onboarding em andamento',cor:'#3b82f6'},
+  {id:'f4',label:'Briefing em andamento',cor:'#06b6d4'},
+  {id:'f5',label:'Planejamento estratégico',cor:'#0891b2'},
+  {id:'f6',label:'Config. e implementação',cor:'#f59e0b'},
+  {id:'f7',label:'Estratégia ativa',cor:'#16a34a'},
+  {id:'f8',label:'Acompanhamento e otimização',cor:'#059669'},
+  {id:'f9',label:'Processo de renovação',cor:'#d97706'},
+  {id:'f10',label:'Encerrado / cancelado',cor:'#dc2626'},
+];
+
+// Etapas de renovação
+const CS_RENOVACAO_ETAPAS = [
+  {id:'r0',label:'Não iniciado'},
+  {id:'r1',label:'Primeiro contato'},
+  {id:'r2',label:'Negociação'},
+  {id:'r3',label:'Proposta enviada'},
+  {id:'r4',label:'Confirmado ✅'},
+  {id:'r5',label:'Não renovou ❌'},
+];
+
 // ══════════════════════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════════════════════
@@ -2804,7 +2833,7 @@ function showInlineModal(title,bodyHtml,saveFn,maxW){
   openModal('inline-modal');
 }
 function _getDataMap(){
-  return{clients,revenues,vendasPontuais,expenses,goals,meetings,monthlyHistory,settings,movements,systemUsers,leads,lembretes};
+  return{clients,revenues,vendasPontuais,expenses,goals,meetings,monthlyHistory,settings,movements,systemUsers,leads,lembretes,csTasks,csOportunidades,csNotificacoesResolvidas};
 }
 function _applyDataMap(map){
   if(map.clients)clients=map.clients;
@@ -2821,6 +2850,9 @@ function _applyDataMap(map){
   _requiredUsers.forEach(u=>{if(!systemUsers.find(x=>x.id===u.id))systemUsers.push(u);});
   if(map.leads)leads=map.leads;
   if(map.lembretes)lembretes=map.lembretes;
+  if(map.csTasks)csTasks=map.csTasks;
+  if(map.csOportunidades)csOportunidades=map.csOportunidades;
+  if(map.csNotificacoesResolvidas)csNotificacoesResolvidas=map.csNotificacoesResolvidas;
 }
 
 // Debounced save to Supabase (avoids hammering the API)
@@ -7717,25 +7749,39 @@ function renderCs(){
 
   sub.textContent=`${ativos.length} clientes ativos`;
 
+  // Alertas para badge de notificações
+  const alertas=_calcCsAlertas(ativos,hoje);
+  const totalAlertas=alertas.filter(a=>!csNotificacoesResolvidas.includes(a.key)).length;
+
   body.innerHTML=`
-    <!-- ALERTAS CS -->
+    <!-- KPIs dashboard -->
     <div id="cs-kpis-wrap"></div>
 
     <!-- TABS -->
-    <div class="client-tabs-bar" style="margin-bottom:16px">
-      <button class="client-tab active" onclick="csSetTab('farol',this)">🚦 Farol da Carteira</button>
+    <div class="client-tabs-bar" style="margin-bottom:16px;flex-wrap:wrap;gap:4px">
+      <button class="client-tab active" onclick="csSetTab('farol',this)">🚦 Farol</button>
       <button class="client-tab" onclick="csSetTab('carteira',this)">🗂 Carteira</button>
-      <button class="client-tab" onclick="csSetTab('checklist',this)">✅ Checklist diário</button>
-      <button class="client-tab" onclick="csSetTab('log',this)">📝 Log de contatos</button>
+      <button class="client-tab" onclick="csSetTab('kanban',this)">📌 Fases</button>
       <button class="client-tab" onclick="csSetTab('renovacoes',this)">🔄 Renovações</button>
+      <button class="client-tab" onclick="csSetTab('tarefas',this)">✅ Tarefas</button>
+      <button class="client-tab" onclick="csSetTab('oportunidades',this)">💡 Oportunidades</button>
+      <button class="client-tab" onclick="csSetTab('log',this)">📝 Log</button>
+      <button class="client-tab" onclick="csSetTab('checklist',this)">📋 Checklist</button>
+      <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">🔔 Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
     </div>
 
-    <div id="cs-tab-farol" class="cs-tab active">${renderCsFarol(ativos,hoje)}</div>
+    <div id="cs-tab-farol" class="cs-tab">${renderCsFarol(ativos,hoje)}</div>
     <div id="cs-tab-carteira" class="cs-tab" style="display:none">${renderCsCarteira(ativos,hoje)}</div>
-    <div id="cs-tab-checklist" class="cs-tab" style="display:none">${renderCsChecklist(ativos,hoje)}</div>
-    <div id="cs-tab-log" class="cs-tab" style="display:none">${renderCsLog(ativos)}</div>
+    <div id="cs-tab-kanban" class="cs-tab" style="display:none">${renderCsKanban(ativos)}</div>
     <div id="cs-tab-renovacoes" class="cs-tab" style="display:none">${renderCsRenovacoes(ativos,hoje)}</div>
+    <div id="cs-tab-tarefas" class="cs-tab" style="display:none">${renderCsTarefas(ativos)}</div>
+    <div id="cs-tab-oportunidades" class="cs-tab" style="display:none">${renderCsOportunidades(ativos)}</div>
+    <div id="cs-tab-log" class="cs-tab" style="display:none">${renderCsLog(ativos)}</div>
+    <div id="cs-tab-checklist" class="cs-tab" style="display:none">${renderCsChecklist(ativos,hoje)}</div>
+    <div id="cs-tab-alertas" class="cs-tab" style="display:none">${renderCsAlertas(ativos,hoje)}</div>
   `;
+  // Show first tab (farol)
+  document.getElementById('cs-tab-farol').style.display='block';
   // Render KPIs after body HTML is set (needs the DOM element)
   _renderCsKpis(ativos,hoje);
 }
@@ -7754,27 +7800,73 @@ function _renderCsKpis(ativos,hoje){
     return Math.round((hoje-new Date(c.cd_cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9;
   });
   const emRisco=ativos.filter(c=>c.churn_risk==='alto');
+  const saudaveis=ativos.filter(c=>c.churn_risk==='baixo');
   const renovacaoBreve=ativos.filter(c=>{
     if(!c.start_date||!c.contract_months)return false;
-    const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
+    const exp=new Date(c.start_date+'T00:00:00');exp.setMonth(exp.getMonth()+Number(c.contract_months));
     const diff=Math.round((exp-hoje)/(864e5));
-    return diff>=0&&diff<=60;
+    return diff>=0&&diff<=40;
   });
-  const kpis=[
+  const renovacaoPendente=ativos.filter(c=>{
+    if(!c.cd_cs?.renovacao_etapa)return false;
+    return !['r4','r5'].includes(c.cd_cs.renovacao_etapa);
+  });
+  // LTV médio
+  const comLtv=ativos.filter(c=>Number(c.ticket_value||c.contract_value||0)>0&&Number(c.contract_months||0)>0);
+  const ltvMedio=comLtv.length?Math.round(comLtv.reduce((s,c)=>s+Number(c.ticket_value||c.contract_value||0)*Number(c.contract_months||0),0)/comLtv.length):0;
+  // Cancelados no mês
+  const canceladosMes=clients.filter(c=>{
+    if(c.status!=='inativo')return false;
+    if(!c.updated_at)return false;
+    const d=new Date(c.updated_at);
+    return d.getMonth()===hoje.getMonth()&&d.getFullYear()===hoje.getFullYear();
+  }).length;
+  // Taxa retenção (simplificada: saudáveis+atenção / total)
+  const naoRisco=ativos.filter(c=>c.churn_risk!=='alto').length;
+  const taxaRetencao=ativos.length?Math.round((naoRisco/ativos.length)*100):0;
+  // Tarefas em atraso
+  const tarefasAtrasadas=csTasks.filter(t=>{
+    if(t.status==='concluida')return false;
+    if(!t.prazo)return false;
+    return new Date(t.prazo+'T00:00:00')<hoje;
+  }).length;
+
+  // Linha 1: indicadores principais
+  const kpisTop=[
+    {label:'Clientes ativos',val:ativos.length,cor:'#0161ff',icon:'👥',key:null,bg:'rgba(1,97,255,.08)'},
+    {label:'Saudáveis',val:saudaveis.length,cor:'#16a34a',icon:'🟢',key:'saudaveis',bg:'rgba(22,163,74,.08)'},
+    {label:'Em risco',val:emRisco.length,cor:'#dc2626',icon:'🔴',key:'emRisco',bg:'rgba(220,38,38,.08)'},
+    {label:'Taxa de retenção',val:taxaRetencao+'%',cor:taxaRetencao>=80?'#16a34a':taxaRetencao>=60?'#d97706':'#dc2626',icon:'📊',key:null,bg:'var(--surface)'},
+    {label:'LTV médio',val:ltvMedio?'R$'+Math.round(ltvMedio/1000)+'k':'—',cor:'var(--text)',icon:'💰',key:null,bg:'var(--surface)'},
+    {label:'Cancelados/mês',val:canceladosMes,cor:canceladosMes>0?'#dc2626':'#16a34a',icon:'📉',key:null,bg:'var(--surface)'},
+  ];
+  // Linha 2: alertas operacionais
+  const kpisAlert=[
     {label:'Sem onboarding',val:semOnboarding.length,cor:'#dc2626',icon:'🚀',key:'semOnboarding'},
     {label:'Sem briefing',val:semBriefing.length,cor:'#d97706',icon:'📋',key:'semBriefing'},
-    {label:'Reunião mensal pendente',val:reunMensalPendente.length,cor:'#7c3aed',icon:'📅',key:'reunMensalPendente'},
-    {label:'Feedback semanal pendente',val:feedbackSemanalPendente.length,cor:'#0891b2',icon:'💬',key:'feedbackSemanalPendente'},
-    {label:'Em risco de churn',val:emRisco.length,cor:'#dc2626',icon:'⚠️',key:'emRisco'},
-    {label:'Renovação em 60 dias',val:renovacaoBreve.length,cor:'#d97706',icon:'🔄',key:'renovacaoBreve'},
+    {label:'Reunião pendente',val:reunMensalPendente.length,cor:'#7c3aed',icon:'📅',key:'reunMensalPendente'},
+    {label:'Feedback pendente',val:feedbackSemanalPendente.length,cor:'#0891b2',icon:'💬',key:'feedbackSemanalPendente'},
+    {label:'Renovação em 40d',val:renovacaoBreve.length,cor:'#d97706',icon:'🔄',key:'renovacaoBreve'},
+    {label:'Tarefas atrasadas',val:tarefasAtrasadas,cor:tarefasAtrasadas>0?'#dc2626':'#16a34a',icon:'⚠️',key:null},
   ];
-  wrap.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px">
-    ${kpis.map(k=>`
-      <div style="background:var(--surface);border:1px solid ${k.val>0?k.cor+'40':'var(--border)'};border-radius:12px;padding:14px 16px;cursor:pointer"
-        onclick="csFilterBy('${k.key}')">
-        <div style="font-size:22px;margin-bottom:6px">${k.icon}</div>
-        <div style="font-size:22px;font-weight:800;color:${k.val>0?k.cor:'var(--text-3)'}">${k.val}</div>
+
+  wrap.innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+    ${kpisTop.map(k=>`
+      <div style="background:${k.bg};border:1px solid ${k.cor}30;border-radius:12px;padding:14px 16px;cursor:${k.key?'pointer':'default'}"
+        ${k.key?`onclick="csFilterBy('${k.key}')"`:''}>
+        <div style="font-size:18px;margin-bottom:6px">${k.icon}</div>
+        <div style="font-size:20px;font-weight:800;color:${k.cor}">${k.val}</div>
         <div style="font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.3">${k.label}</div>
+      </div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px">
+    ${kpisAlert.map(k=>`
+      <div style="background:var(--surface);border:1px solid ${k.val>0?k.cor+'40':'var(--border)'};border-radius:12px;padding:12px 14px;cursor:${k.key?'pointer':'default'}"
+        ${k.key?`onclick="csFilterBy('${k.key}')"`:''}>
+        <div style="font-size:16px;margin-bottom:4px">${k.icon}</div>
+        <div style="font-size:18px;font-weight:800;color:${k.val>0?k.cor:'var(--text-3)'}">${k.val}</div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:2px;line-height:1.3">${k.label}</div>
       </div>`).join('')}
   </div>`;
 }
@@ -7816,6 +7908,7 @@ function filterCsClients(ativos,key,hoje){
       return Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9;
     }
     if(key==='emRisco')return c.churn_risk==='alto';
+    if(key==='saudaveis')return c.churn_risk==='baixo';
     if(key==='renovacaoBreve'){
       if(!c.start_date||!c.contract_months)return false;
       const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
@@ -8146,21 +8239,17 @@ function renderCsRenovacoes(ativos,hoje){
             <div style="font-size:11px;color:var(--text-3)">Vence em ${expStr}</div>
           </div>
         </div>
-        <!-- Ações de renovação -->
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);cursor:pointer">
-            <input type="checkbox" ${cs.renovacao_contato?'checked':''} style="accent-color:#e11d48" onchange="saveCsRenovacao('${c.id}','contato',this.checked)"/>
-            Contato feito
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);cursor:pointer">
-            <input type="checkbox" ${cs.renovacao_proposta?'checked':''} style="accent-color:#e11d48" onchange="saveCsRenovacao('${c.id}','proposta',this.checked)"/>
-            Proposta enviada
-          </label>
-          <label style="display:flex;align-items:center;gap=6px;font-size:12px;color:var(--text-2);cursor:pointer">
-            <input type="checkbox" ${cs.upsell_identificado?'checked':''} style="accent-color:#e11d48" onchange="saveCsRenovacao('${c.id}','upsell',this.checked)"/>
-            Upsell identificado
-          </label>
-          <input class="inp" value="${cs.renovacao_obs||''}" placeholder="Observação de renovação..." style="flex:1;min-width:160px;font-size:12px"
+        <!-- Pipeline de renovação 6 etapas -->
+        <div style="margin-top:10px">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+            ${CS_RENOVACAO_ETAPAS.map(et=>{
+              const ativa=(cs.renovacao_etapa||'r0')===et.id;
+              const corEt={r0:'#6b7280',r1:'#3b82f6',r2:'#8b5cf6',r3:'#d97706',r4:'#16a34a',r5:'#dc2626'}[et.id]||'#6b7280';
+              return`<button onclick="saveCsRenovacaoEtapa('${c.id}','${et.id}')"
+                style="font-size:10px;font-weight:${ativa?700:500};padding:3px 9px;border-radius:5px;border:1.5px solid ${ativa?corEt:corEt+'50'};background:${ativa?corEt+'18':'transparent'};color:${ativa?corEt:'var(--text-3)'};cursor:pointer;transition:.15s">${et.label}</button>`;
+            }).join('')}
+          </div>
+          <input class="inp" value="${cs.renovacao_obs||''}" placeholder="Observação de renovação..." style="width:100%;box-sizing:border-box;font-size:12px"
             onblur="saveCsRenovacaoObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
         </div>
       </div>`;
@@ -8339,6 +8428,450 @@ function saveCsRenovacaoObs(clientId,val){
   if(!c.cd_cs)c.cd_cs={};
   c.cd_cs.renovacao_obs=val;
   saveAll();
+}
+function saveCsRenovacaoEtapa(clientId,etapaId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  c.cd_cs.renovacao_etapa=etapaId;
+  saveAll();showToast('Etapa de renovação atualizada');
+  // Re-render renovações
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(cl=>cl.status==='ativo'&&(isCs?cl.cs_id===currentSystemUser.id:true));
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const el=document.getElementById('cs-tab-renovacoes');
+  if(el)el.innerHTML=renderCsRenovacoes(ativos,hoje);
+}
+
+// ══════════════════════════════════════════════════════
+// CS — KANBAN DE FASES OPERACIONAIS
+// ══════════════════════════════════════════════════════
+function renderCsKanban(ativos){
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const cols=CS_FASES.map(fase=>{
+    const list=ativos.filter(c=>(c.cs_fase||'f7')===fase.id);
+    return{fase,list};
+  });
+  return`<div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Clique em um cliente para mover de fase. Use os botões de fase na aba Carteira para atualizar.</div>
+    <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:12px">
+      ${cols.map(({fase,list})=>`
+        <div style="flex:0 0 200px;background:var(--surface-2);border-radius:10px;padding:10px;min-height:120px">
+          <div style="font-size:11px;font-weight:700;color:${fase.cor};margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${fase.cor};flex-shrink:0"></span>
+            ${fase.label}
+            <span style="margin-left:auto;background:${fase.cor}20;color:${fase.cor};border-radius:10px;padding:1px 7px;font-size:10px">${list.length}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${list.map(c=>`
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;transition:.15s"
+                onclick="openCsSetFaseModal('${c.id}')"
+                onmouseover="this.style.borderColor='${fase.cor}50'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="font-size:12px;font-weight:600;color:var(--text)">${c.company_name}</div>
+                <div style="font-size:10px;color:var(--text-3);margin-top:2px">${c.churn_risk==='alto'?'🔴':c.churn_risk==='medio'?'🟡':'🟢'} ${c.niche||'—'}</div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function openCsSetFaseModal(clientId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  const faseAtual=c.cs_fase||'f7';
+  const body=`<div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">${c.company_name}</div>
+    ${CS_FASES.map(f=>`
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;border-radius:8px;border:1.5px solid ${faseAtual===f.id?f.cor:'var(--border)'};background:${faseAtual===f.id?f.cor+'12':'var(--surface)'};transition:.15s">
+        <input type="radio" name="cs-fase-sel" value="${f.id}" ${faseAtual===f.id?'checked':''} style="accent-color:${f.cor}"/>
+        <span style="width:8px;height:8px;border-radius:50%;background:${f.cor};flex-shrink:0"></span>
+        <span style="font-size:12px;font-weight:500;color:var(--text)">${f.label}</span>
+      </label>`).join('')}
+    <div style="margin-top:8px"><label class="lbl">Observação sobre a fase</label>
+      <textarea class="inp" id="fase-obs" rows="2" style="margin-top:4px;width:100%;box-sizing:border-box">${c.cs_fase_obs||''}</textarea>
+    </div>
+  </div>`;
+  showInlineModal('Fase Operacional — '+c.company_name, body, ()=>{
+    const sel=document.querySelector('input[name="cs-fase-sel"]:checked');
+    if(!sel)return;
+    const novaFase=sel.value;
+    const obs=document.getElementById('fase-obs')?.value||'';
+    const faseAnterior=c.cs_fase||'f7';
+    c.cs_fase=novaFase;
+    c.cs_fase_obs=obs;
+    if(!c.cd_cs)c.cd_cs={};
+    if(!c.cd_cs.fase_historico)c.cd_cs.fase_historico=[];
+    if(novaFase!==faseAnterior){
+      c.cd_cs.fase_historico.unshift({de:faseAnterior,para:novaFase,obs,data:new Date().toISOString().slice(0,10),resp:currentSystemUser?.name||'CS'});
+    }
+    saveAll();closeModal('inline-modal');showToast('Fase atualizada!');
+    const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+    const ativos=clients.filter(cl=>cl.status==='ativo'&&(isCs?cl.cs_id===currentSystemUser.id:true));
+    const el=document.getElementById('cs-tab-kanban');
+    if(el)el.innerHTML=renderCsKanban(ativos);
+  }, 420);
+}
+
+// ══════════════════════════════════════════════════════
+// CS — TAREFAS
+// ══════════════════════════════════════════════════════
+function renderCsTarefas(ativos){
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const minhasTarefas=isCs?csTasks.filter(t=>t.responsavel===currentSystemUser.name||!t.responsavel):csTasks;
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const pendentes=minhasTarefas.filter(t=>t.status!=='concluida').sort((a,b)=>{
+    if(!a.prazo&&!b.prazo)return 0;if(!a.prazo)return 1;if(!b.prazo)return -1;
+    return new Date(a.prazo)-new Date(b.prazo);
+  });
+  const concluidas=minhasTarefas.filter(t=>t.status==='concluida').slice(0,20);
+  const corPrioridade={alta:'#dc2626',media:'#d97706',baixa:'#16a34a'};
+  const bgPrioridade={alta:'rgba(220,38,38,.08)',media:'rgba(217,119,6,.08)',baixa:'rgba(22,163,74,.08)'};
+
+  return`<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700">Tarefas e pendências</div>
+      <button class="btn btn-primary btn-sm" onclick="openCsTarefaModal()">+ Nova tarefa</button>
+    </div>
+    ${pendentes.length===0?`<div style="text-align:center;padding:32px;color:var(--text-3)"><div style="font-size:28px;margin-bottom:8px">✅</div><div>Nenhuma tarefa pendente!</div></div>`:''}
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${pendentes.map(t=>{
+        const c=ativos.find(cl=>cl.id===t.clientId);
+        const prazoDt=t.prazo?new Date(t.prazo+'T00:00:00'):null;
+        const atrasada=prazoDt&&prazoDt<hoje;
+        const prazoLabel=prazoDt?prazoDt.toLocaleDateString('pt-BR'):'Sem prazo';
+        return`<div style="background:var(--surface);border:1px solid ${atrasada?'#dc2626':'var(--border)'};border-left:3px solid ${corPrioridade[t.prioridade]||'#6b7280'};border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <input type="checkbox" style="width:16px;height:16px;accent-color:#e11d48;cursor:pointer;flex-shrink:0" ${t.status==='concluida'?'checked':''} onchange="toggleCsTarefa('${t.id}',this.checked)"/>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${t.titulo}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+              ${c?`<span style="font-size:10px;color:var(--text-3)">📌 ${c.company_name}</span>`:''}
+              <span style="font-size:10px;padding:1px 7px;border-radius:5px;background:${bgPrioridade[t.prioridade]||'var(--surface-2)'};color:${corPrioridade[t.prioridade]||'#6b7280'};font-weight:600">${t.prioridade||'—'}</span>
+              <span style="font-size:10px;color:${atrasada?'#dc2626':'var(--text-3)'};font-weight:${atrasada?700:400}">⏰ ${prazoLabel}${atrasada?' ⚠️':''}</span>
+              ${t.tipo?`<span style="font-size:10px;color:var(--text-3)">${t.tipo}</span>`:''}
+            </div>
+            ${t.notas?`<div style="font-size:11px;color:var(--text-2);margin-top:4px">${t.notas}</div>`:''}
+          </div>
+          <button onclick="openCsTarefaModal('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;border-radius:5px;transition:.15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-3)'">✏️</button>
+          <button onclick="deleteCsTarefa('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;border-radius:5px;transition:.15s" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--text-3)'">🗑️</button>
+        </div>`;
+      }).join('')}
+    </div>
+    ${concluidas.length>0?`
+    <div style="margin-top:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:8px">Concluídas recentemente</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        ${concluidas.map(t=>{
+          const c=ativos.find(cl=>cl.id===t.clientId);
+          return`<div style="background:var(--surface-2);border-radius:7px;padding:8px 12px;display:flex;align-items:center;gap:10px;opacity:.7">
+            <input type="checkbox" checked style="width:14px;height:14px;accent-color:#16a34a;cursor:pointer;flex-shrink:0" onchange="toggleCsTarefa('${t.id}',this.checked)"/>
+            <span style="font-size:12px;text-decoration:line-through;color:var(--text-2)">${t.titulo}${c?' — '+c.company_name:''}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+function openCsTarefaModal(editId){
+  const t=editId?csTasks.find(x=>x.id===editId):null;
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const hoje=new Date().toISOString().slice(0,10);
+  const tipos=['Realizar feedback semanal','Agendar reunião de resultados','Entrar em contato com cliente em risco','Iniciar renovação','Solicitar depoimento','Solicitar indicação','Identificar oportunidade de upsell','Resolver reclamação','Outro'];
+  const body=`<div style="display:flex;flex-direction:column;gap:10px">
+    <div><label class="lbl">Título da tarefa *</label>
+      <input class="inp" id="cst-titulo" value="${t?.titulo||''}" placeholder="O que precisa ser feito..." style="margin-top:4px"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="lbl">Tipo</label>
+        <select class="inp" id="cst-tipo" style="margin-top:4px">
+          <option value="">Selecione...</option>
+          ${tipos.map(tp=>`<option value="${tp}" ${t?.tipo===tp?'selected':''}>${tp}</option>`).join('')}
+        </select></div>
+      <div><label class="lbl">Cliente relacionado</label>
+        <select class="inp" id="cst-client" style="margin-top:4px">
+          <option value="">Sem cliente</option>
+          ${ativos.map(c=>`<option value="${c.id}" ${t?.clientId===c.id?'selected':''}>${c.company_name}</option>`).join('')}
+        </select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div><label class="lbl">Prazo</label>
+        <input class="inp" type="date" id="cst-prazo" value="${t?.prazo||''}" style="margin-top:4px"/></div>
+      <div><label class="lbl">Prioridade</label>
+        <select class="inp" id="cst-prioridade" style="margin-top:4px">
+          <option value="baixa" ${t?.prioridade==='baixa'?'selected':''}>🟢 Baixa</option>
+          <option value="media" ${(!t||t?.prioridade==='media')?'selected':''}>🟡 Média</option>
+          <option value="alta" ${t?.prioridade==='alta'?'selected':''}>🔴 Alta</option>
+        </select></div>
+      <div><label class="lbl">Status</label>
+        <select class="inp" id="cst-status" style="margin-top:4px">
+          <option value="pendente" ${(!t||t?.status==='pendente')?'selected':''}>Pendente</option>
+          <option value="em_andamento" ${t?.status==='em_andamento'?'selected':''}>Em andamento</option>
+          <option value="concluida" ${t?.status==='concluida'?'selected':''}>Concluída</option>
+        </select></div>
+    </div>
+    <div><label class="lbl">Notas</label>
+      <textarea class="inp" id="cst-notas" rows="2" style="margin-top:4px;width:100%;box-sizing:border-box">${t?.notas||''}</textarea></div>
+  </div>`;
+  showInlineModal(editId?'Editar tarefa':'Nova tarefa', body, ()=>{
+    const titulo=document.getElementById('cst-titulo')?.value?.trim();
+    if(!titulo)return showToast('Informe o título');
+    const obj={
+      id:editId||uid(),
+      titulo,
+      tipo:document.getElementById('cst-tipo')?.value,
+      clientId:document.getElementById('cst-client')?.value||null,
+      prazo:document.getElementById('cst-prazo')?.value||null,
+      prioridade:document.getElementById('cst-prioridade')?.value||'media',
+      status:document.getElementById('cst-status')?.value||'pendente',
+      notas:document.getElementById('cst-notas')?.value||'',
+      responsavel:currentSystemUser?.name||'CS',
+      criado:editId?(csTasks.find(x=>x.id===editId)?.criado||new Date().toISOString()):new Date().toISOString(),
+    };
+    if(editId){const idx=csTasks.findIndex(x=>x.id===editId);if(idx>-1)csTasks[idx]=obj;}
+    else csTasks.unshift(obj);
+    saveAll();closeModal('inline-modal');showToast('Tarefa salva!');
+    const ativosNow=clients.filter(c=>c.status==='ativo'&&(currentSystemUser?.level==='cs'?c.cs_id===currentSystemUser.id:true));
+    const el=document.getElementById('cs-tab-tarefas');
+    if(el)el.innerHTML=renderCsTarefas(ativosNow);
+    _renderCsKpis(ativosNow,new Date());
+  },520);
+}
+
+function toggleCsTarefa(id,val){
+  const t=csTasks.find(x=>x.id===id);if(!t)return;
+  t.status=val?'concluida':'pendente';
+  saveAll();showToast(val?'✅ Tarefa concluída':'↩️ Tarefa reaberta');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const el=document.getElementById('cs-tab-tarefas');
+  if(el)el.innerHTML=renderCsTarefas(ativos);
+  _renderCsKpis(ativos,new Date());
+}
+
+function deleteCsTarefa(id){
+  if(!confirm('Excluir esta tarefa?'))return;
+  csTasks=csTasks.filter(x=>x.id!==id);
+  saveAll();showToast('Tarefa excluída');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const el=document.getElementById('cs-tab-tarefas');
+  if(el)el.innerHTML=renderCsTarefas(ativos);
+}
+
+// ══════════════════════════════════════════════════════
+// CS — OPORTUNIDADES DE LTV
+// ══════════════════════════════════════════════════════
+function renderCsOportunidades(ativos){
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const minhasOps=isCs?csOportunidades.filter(o=>{
+    const c=clients.find(cl=>cl.id===o.clientId);
+    return c&&c.cs_id===currentSystemUser.id;
+  }):csOportunidades;
+  const abertas=minhasOps.filter(o=>o.status!=='convertida'&&o.status!=='perdida');
+  const fechadas=minhasOps.filter(o=>o.status==='convertida'||o.status==='perdida');
+  const corTipo={upsell:'#0161ff',crosssell:'#7c3aed',renovacao_antecipada:'#059669',indicacao:'#d97706',depoimento:'#6b7280',downsell:'#f59e0b'};
+  const labelTipo={upsell:'Upsell',crosssell:'Cross-sell',renovacao_antecipada:'Renovação antecipada',indicacao:'Indicação',depoimento:'Depoimento',downsell:'Downsell'};
+  const corStatus={aberta:'#0161ff',em_negociacao:'#d97706',convertida:'#16a34a',perdida:'#dc2626'};
+  const labelStatus={aberta:'Aberta',em_negociacao:'Em negociação',convertida:'Convertida ✅',perdida:'Perdida'};
+  const totalPotencial=abertas.reduce((s,o)=>s+Number(o.valorPotencial||0),0);
+  const totalConvertido=fechadas.filter(o=>o.status==='convertida').reduce((s,o)=>s+Number(o.valorPotencial||0),0);
+
+  return`<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:13px;font-weight:700">Oportunidades de crescimento</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${abertas.length} abertas · R$ ${totalPotencial.toLocaleString('pt-BR',{maximumFractionDigits:0})} potencial · R$ ${totalConvertido.toLocaleString('pt-BR',{maximumFractionDigits:0})} convertido</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openCsOportunidadeModal()">+ Nova oportunidade</button>
+    </div>
+    ${abertas.length===0&&fechadas.length===0?`<div style="text-align:center;padding:32px;color:var(--text-3)"><div style="font-size:28px;margin-bottom:8px">💡</div><div>Nenhuma oportunidade registrada ainda</div></div>`:
+    `<div style="display:flex;flex-direction:column;gap:6px">
+      ${[...abertas,...fechadas].map(o=>{
+        const c=ativos.find(cl=>cl.id===o.clientId)||clients.find(cl=>cl.id===o.clientId);
+        return`<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${corTipo[o.tipo]||'#6b7280'};border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:700;color:${corTipo[o.tipo]||'#6b7280'};background:${corTipo[o.tipo]||'#6b7280'}15;padding:2px 8px;border-radius:5px">${labelTipo[o.tipo]||o.tipo}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text)">${c?c.company_name:'Cliente desconhecido'}</span>
+            </div>
+            ${o.descricao?`<div style="font-size:12px;color:var(--text-2)">${o.descricao}</div>`:''}
+            ${o.notas?`<div style="font-size:11px;color:var(--text-3);margin-top:3px">${o.notas}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+            ${o.valorPotencial?`<div style="font-size:13px;font-weight:800;color:var(--text)">R$ ${Number(o.valorPotencial).toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>`:''}
+            <select style="font-size:11px;border:1px solid ${corStatus[o.status]||'var(--border)'};border-radius:6px;background:${corStatus[o.status]||'#6b7280'}15;color:${corStatus[o.status]||'var(--text)'};padding:2px 6px;cursor:pointer"
+              onchange="saveCsOportunidadeStatus('${o.id}',this.value)">
+              ${Object.entries(labelStatus).map(([v,l])=>`<option value="${v}" ${o.status===v?'selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+          <button onclick="deleteCsOportunidade('${o.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;border-radius:5px" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--text-3)'">🗑️</button>
+        </div>`;
+      }).join('')}
+    </div>`}
+  </div>`;
+}
+
+function openCsOportunidadeModal(editId){
+  const o=editId?csOportunidades.find(x=>x.id===editId):null;
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const body=`<div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="lbl">Tipo *</label>
+        <select class="inp" id="cso-tipo" style="margin-top:4px">
+          <option value="">Selecione...</option>
+          <option value="upsell" ${o?.tipo==='upsell'?'selected':''}>Upsell</option>
+          <option value="crosssell" ${o?.tipo==='crosssell'?'selected':''}>Cross-sell</option>
+          <option value="renovacao_antecipada" ${o?.tipo==='renovacao_antecipada'?'selected':''}>Renovação antecipada</option>
+          <option value="indicacao" ${o?.tipo==='indicacao'?'selected':''}>Indicação</option>
+          <option value="depoimento" ${o?.tipo==='depoimento'?'selected':''}>Depoimento</option>
+          <option value="downsell" ${o?.tipo==='downsell'?'selected':''}>Downsell</option>
+        </select></div>
+      <div><label class="lbl">Cliente *</label>
+        <select class="inp" id="cso-client" style="margin-top:4px">
+          <option value="">Selecione...</option>
+          ${ativos.map(c=>`<option value="${c.id}" ${o?.clientId===c.id?'selected':''}>${c.company_name}</option>`).join('')}
+        </select></div>
+    </div>
+    <div><label class="lbl">Descrição</label>
+      <input class="inp" id="cso-desc" value="${o?.descricao||''}" placeholder="Descreva a oportunidade..." style="margin-top:4px"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label class="lbl">Valor potencial (R$)</label>
+        <input class="inp" type="number" id="cso-valor" value="${o?.valorPotencial||''}" placeholder="0" style="margin-top:4px"/></div>
+      <div><label class="lbl">Status</label>
+        <select class="inp" id="cso-status" style="margin-top:4px">
+          <option value="aberta" ${(!o||o.status==='aberta')?'selected':''}>Aberta</option>
+          <option value="em_negociacao" ${o?.status==='em_negociacao'?'selected':''}>Em negociação</option>
+          <option value="convertida" ${o?.status==='convertida'?'selected':''}>Convertida</option>
+          <option value="perdida" ${o?.status==='perdida'?'selected':''}>Perdida</option>
+        </select></div>
+    </div>
+    <div><label class="lbl">Notas adicionais</label>
+      <textarea class="inp" id="cso-notas" rows="2" style="margin-top:4px;width:100%;box-sizing:border-box">${o?.notas||''}</textarea></div>
+  </div>`;
+  showInlineModal(editId?'Editar oportunidade':'Nova oportunidade', body, ()=>{
+    const tipo=document.getElementById('cso-tipo')?.value;
+    const clientId=document.getElementById('cso-client')?.value;
+    if(!tipo||!clientId)return showToast('Informe tipo e cliente');
+    const obj={
+      id:editId||uid(),tipo,clientId,
+      descricao:document.getElementById('cso-desc')?.value||'',
+      valorPotencial:Number(document.getElementById('cso-valor')?.value)||0,
+      status:document.getElementById('cso-status')?.value||'aberta',
+      notas:document.getElementById('cso-notas')?.value||'',
+      responsavel:currentSystemUser?.name||'CS',
+      criado:editId?(csOportunidades.find(x=>x.id===editId)?.criado||new Date().toISOString()):new Date().toISOString(),
+    };
+    if(editId){const idx=csOportunidades.findIndex(x=>x.id===editId);if(idx>-1)csOportunidades[idx]=obj;}
+    else csOportunidades.unshift(obj);
+    saveAll();closeModal('inline-modal');showToast('Oportunidade salva!');
+    const ativosNow=clients.filter(c=>c.status==='ativo'&&(currentSystemUser?.level==='cs'?c.cs_id===currentSystemUser.id:true));
+    const el=document.getElementById('cs-tab-oportunidades');
+    if(el)el.innerHTML=renderCsOportunidades(ativosNow);
+  },520);
+}
+
+function saveCsOportunidadeStatus(id,status){
+  const o=csOportunidades.find(x=>x.id===id);if(!o)return;
+  o.status=status;saveAll();showToast('Status atualizado');
+}
+function deleteCsOportunidade(id){
+  if(!confirm('Excluir esta oportunidade?'))return;
+  csOportunidades=csOportunidades.filter(x=>x.id!==id);
+  saveAll();showToast('Excluída');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const el=document.getElementById('cs-tab-oportunidades');
+  if(el)el.innerHTML=renderCsOportunidades(ativos);
+}
+
+// ══════════════════════════════════════════════════════
+// CS — ALERTAS / NOTIFICAÇÕES
+// ══════════════════════════════════════════════════════
+function _calcCsAlertas(ativos,hoje){
+  const alertas=[];
+  ativos.forEach(c=>{
+    const cs=c.cd_cs||{};
+    // Sem feedback há mais de 9 dias
+    if(!cs.ultimo_feedback_semanal||Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9){
+      alertas.push({key:`feed-${c.id}`,nivel:'media',titulo:'Sem feedback semanal',desc:c.company_name,clientId:c.id,icone:'💬'});
+    }
+    // Em risco
+    if(c.churn_risk==='alto'){
+      alertas.push({key:`risco-${c.id}`,nivel:'alta',titulo:'Cliente em risco de churn',desc:c.company_name,clientId:c.id,icone:'🔴'});
+    }
+    // Contrato vencendo
+    if(c.start_date&&c.contract_months){
+      const exp=new Date(c.start_date+'T00:00:00');exp.setMonth(exp.getMonth()+Number(c.contract_months));
+      const diff=Math.round((exp-hoje)/(864e5));
+      if(diff<0){alertas.push({key:`venc-${c.id}`,nivel:'alta',titulo:'Contrato vencido',desc:`${c.company_name} — venceu há ${Math.abs(diff)}d`,clientId:c.id,icone:'🚨'});}
+      else if(diff<=7){alertas.push({key:`venc7-${c.id}`,nivel:'alta',titulo:'Contrato vence em 7 dias',desc:`${c.company_name} — ${diff}d restantes`,clientId:c.id,icone:'⚠️'});}
+      else if(diff<=15){alertas.push({key:`venc15-${c.id}`,nivel:'alta',titulo:'Contrato vence em 15 dias',desc:`${c.company_name} — ${diff}d restantes`,clientId:c.id,icone:'🔔'});}
+      else if(diff<=30){alertas.push({key:`venc30-${c.id}`,nivel:'media',titulo:'Iniciar renovação (30 dias)',desc:`${c.company_name} — ${diff}d restantes`,clientId:c.id,icone:'📋'});}
+      else if(diff<=40){alertas.push({key:`venc40-${c.id}`,nivel:'baixa',titulo:'Período de atenção (40 dias)',desc:`${c.company_name} — ${diff}d restantes`,clientId:c.id,icone:'📌'});}
+    }
+    // Sem reunião mensal há mais de 35 dias
+    if(!cs.ultima_reuniao_mensal||Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5))>35){
+      alertas.push({key:`reu-${c.id}`,nivel:'media',titulo:'Sem reunião mensal',desc:c.company_name,clientId:c.id,icone:'📅'});
+    }
+  });
+  // Tarefas atrasadas
+  csTasks.filter(t=>t.status!=='concluida'&&t.prazo&&new Date(t.prazo+'T00:00:00')<hoje).forEach(t=>{
+    const c=clients.find(cl=>cl.id===t.clientId);
+    alertas.push({key:`task-${t.id}`,nivel:'media',titulo:'Tarefa atrasada',desc:`${t.titulo}${c?' — '+c.company_name:''}`,clientId:t.clientId,icone:'⚠️'});
+  });
+  return alertas;
+}
+
+function renderCsAlertas(ativos,hoje){
+  const alertas=_calcCsAlertas(ativos,hoje);
+  const pendentes=alertas.filter(a=>!csNotificacoesResolvidas.includes(a.key));
+  const corNivel={alta:'#dc2626',media:'#d97706',baixa:'#16a34a'};
+  const bgNivel={alta:'rgba(220,38,38,.06)',media:'rgba(217,119,6,.06)',baixa:'rgba(22,163,74,.06)'};
+  const ordenadas=[...pendentes].sort((a,b)=>{const p={alta:0,media:1,baixa:2};return p[a.nivel]-p[b.nivel];});
+
+  return`<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700">Central de alertas</div>
+      ${pendentes.length>0?`<button class="btn btn-secondary btn-sm" onclick="resolverTodosAlertas()">Marcar todos como resolvido</button>`:''}
+    </div>
+    ${ordenadas.length===0?`<div style="text-align:center;padding:40px;color:var(--text-3)"><div style="font-size:36px;margin-bottom:10px">🎉</div><div style="font-size:14px;font-weight:600">Nenhum alerta pendente!</div><div style="font-size:12px;margin-top:4px">Tudo em dia.</div></div>`:
+    `<div style="display:flex;flex-direction:column;gap:6px">
+      ${ordenadas.map(a=>`
+        <div style="background:${bgNivel[a.nivel]};border:1px solid ${corNivel[a.nivel]}30;border-left:3px solid ${corNivel[a.nivel]};border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px;flex-shrink:0">${a.icone}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;color:${corNivel[a.nivel]}">${a.titulo}</div>
+            <div style="font-size:11px;color:var(--text-2);margin-top:2px">${a.desc}</div>
+          </div>
+          ${a.clientId?`<button class="btn btn-secondary btn-sm" onclick="openClientDetail('${a.clientId}')">Ver</button>`:''}
+          <button onclick="resolverAlerta('${a.key}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;padding:4px;border-radius:5px" title="Resolver" onmouseover="this.style.color='#16a34a'" onmouseout="this.style.color='var(--text-3)'">✓</button>
+        </div>`).join('')}
+    </div>`}
+    ${csNotificacoesResolvidas.length>0?`
+    <div style="margin-top:16px">
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:6px">Resolvidos (${csNotificacoesResolvidas.length}) — <button onclick="csNotificacoesResolvidas=[];saveAll();renderCs();" style="background:none;border:none;cursor:pointer;font-size:11px;color:#dc2626;padding:0">Limpar</button></div>
+    </div>`:''}
+  </div>`;
+}
+
+function resolverAlerta(key){
+  if(!csNotificacoesResolvidas.includes(key))csNotificacoesResolvidas.push(key);
+  saveAll();showToast('Alerta resolvido ✓');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const el=document.getElementById('cs-tab-alertas');
+  if(el)el.innerHTML=renderCsAlertas(ativos,hoje);
+  // Atualiza badge no botão da aba
+  renderCs();
+}
+function resolverTodosAlertas(){
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const alertas=_calcCsAlertas(ativos,hoje);
+  alertas.forEach(a=>{if(!csNotificacoesResolvidas.includes(a.key))csNotificacoesResolvidas.push(a.key);});
+  saveAll();showToast('Todos os alertas resolvidos ✓');renderCs();
 }
 
 // ══════════════════════════════════════════════════════
