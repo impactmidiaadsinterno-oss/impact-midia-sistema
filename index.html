@@ -2025,6 +2025,43 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
   </div>
 </div>
 
+<!-- FAT MES MODAL (dentro do detalhe do cliente) -->
+<div class="mover" id="fat-mes-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="mhdr"><div class="mtitle" id="fat-mes-modal-title">Registrar faturamento</div><button class="mclose" onclick="closeModal('fat-mes-modal')">×</button></div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="fgroup"><label class="lbl">Mês de referência</label>
+        <div style="display:grid;grid-template-columns:1fr 100px;gap:8px">
+          <select class="inp" id="fat-sel-mes">
+            <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+            <option value="03">Março</option><option value="04">Abril</option>
+            <option value="05">Maio</option><option value="06">Junho</option>
+            <option value="07">Julho</option><option value="08">Agosto</option>
+            <option value="09">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+          <select class="inp" id="fat-sel-ano">
+            <option value="2022">2022</option><option value="2023">2023</option>
+            <option value="2024">2024</option><option value="2025">2025</option>
+            <option value="2026" selected>2026</option><option value="2027">2027</option>
+          </select>
+        </div>
+      </div>
+      <div class="fgroup"><label class="lbl">Faturamento (R$)</label>
+        <input class="inp" id="fat-sel-valor" type="text" placeholder="Ex: R$ 5.000,00"/>
+      </div>
+      <div class="fgroup"><label class="lbl">Observação (opcional)</label>
+        <input class="inp" id="fat-sel-obs" type="text" placeholder="Ex: Contrato renovado"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-primary" onclick="saveFatMesModal()">Salvar</button>
+      <button class="btn btn-secondary" onclick="closeModal('fat-mes-modal')">Cancelar</button>
+      <button id="fat-mes-del-btn" class="btn btn-danger" style="margin-left:auto;display:none" onclick="delFatMesModal()">Excluir</button>
+    </div>
+  </div>
+</div>
+
 <!-- HISTÓRICO MODAL -->
 <div class="mover" id="historico-modal">
   <div class="modal" style="max-width:580px">
@@ -9570,29 +9607,20 @@ function renderCdFaturamento(){
             const val=parseMoney(m.valor);
             const prevVal=idx>0?parseMoney(meses[idx-1].valor):null;
             const d=fmtDelta(val,prevVal);
-            const vsMeta=metaVal&&val!==null?fmtDelta(val,metaVal):{txt:'—',color:'var(--text-3)',icon:''};
             const metaPctRow=metaVal&&val!==null?(val/metaVal*100):null;
             const isBest=val!==null&&val===melhor;
+            const mesDisplay=_fatMesFormatDisplay(m.mes);
             return`<tr id="fat-row-${idx}" style="border-top:1px solid var(--border)${isBest?';background:rgba(22,163,74,.04)':''}">
               <td style="padding:10px 14px;vertical-align:middle">
-                ${canEdit
-                  ?`<input id="fat-mes-${idx}" class="inp" value="${m.mes||''}" placeholder="Out/2026"
-                      style="width:80px;font-size:12px;font-weight:600"
-                      onblur="saveFatRow(${idx})" onkeydown="if(event.key==='Enter')this.blur()"/>`
-                  :`<span style="font-size:12px;font-weight:600;color:var(--text)">${m.mes||'—'}</span>`}
-                ${isBest?`<span style="margin-left:6px;font-size:10px;background:rgba(22,163,74,.12);color:#16a34a;border-radius:4px;padding:2px 6px;font-weight:700">🏆 Melhor</span>`:''}
+                <span style="font-size:12px;font-weight:600;color:var(--text)">${mesDisplay}</span>
+                ${isBest?`<span style="margin-left:6px;font-size:10px;background:rgba(22,163,74,.12);color:#16a34a;border-radius:4px;padding:2px 6px;font-weight:700">🏆</span>`:''}
               </td>
               <td style="padding:10px 14px;vertical-align:middle">
-                ${canEdit
-                  ?`<input id="fat-valor-${idx}" class="inp" value="${m.valor||''}" placeholder="R$ 0,00"
-                      style="width:110px;font-size:13px;font-weight:700;color:var(--text)"
-                      onblur="saveFatRow(${idx})" onkeydown="if(event.key==='Enter')this.blur()"/>`
-                  :`<span style="font-size:13px;font-weight:700;color:var(--text)">${fmtMoney(val)}</span>`}
+                <span style="font-size:13px;font-weight:700;color:var(--text)">${fmtMoney(val)}</span>
               </td>
               <td style="padding:10px 14px;vertical-align:middle">
                 ${prevVal!==null&&val!==null
-                  ?`<span style="font-size:12px;font-weight:700;color:${d.color}">${d.icon} ${d.txt}</span>
-                    <div style="font-size:10px;color:var(--text-3);margin-top:1px">${fmtMoney(Math.abs(val-prevVal))} ${val>=prevVal?'a mais':'a menos'}</div>`
+                  ?`<span style="font-size:12px;font-weight:700;color:${d.color}">${d.icon} ${d.txt}</span>`
                   :`<span style="color:var(--text-3);font-size:12px">—</span>`}
               </td>
               <td style="padding:10px 14px;vertical-align:middle">
@@ -9606,14 +9634,10 @@ function renderCdFaturamento(){
                   :`<span style="color:var(--text-3);font-size:12px">—</span>`}
               </td>
               <td style="padding:10px 14px;vertical-align:middle">
-                ${canEdit
-                  ?`<input id="fat-obs-${idx}" class="inp" value="${(m.obs||'').replace(/"/g,'&quot;')}" placeholder="Observação..."
-                      style="width:140px;font-size:12px"
-                      onblur="saveFatRow(${idx})" onkeydown="if(event.key==='Enter')this.blur()"/>`
-                  :`<span style="font-size:12px;color:var(--text-2)">${m.obs||''}</span>`}
+                <span style="font-size:12px;color:var(--text-2)">${m.obs||''}</span>
               </td>
               ${canEdit?`<td style="padding:10px 14px;vertical-align:middle">
-                <button class="btn btn-danger btn-sm" onclick="delFatMes(${idx})" title="Excluir">×</button>
+                <button class="btn btn-secondary btn-sm" onclick="editFatMes(${idx})" title="Editar" style="font-size:12px">✏️</button>
               </td>`:''}
             </tr>`;
           }).join('')}
@@ -9631,27 +9655,92 @@ function saveFatMeta(val){
 }
 
 function saveFatRow(idx){
-  const c=clients.find(x=>x.id===currentDetailClientId);if(!c||!c.cd_faturamento)return;
-  const mes=document.getElementById(`fat-mes-${idx}`)?.value||c.cd_faturamento.meses[idx]?.mes||'';
-  const valor=document.getElementById(`fat-valor-${idx}`)?.value||'';
-  const obs=document.getElementById(`fat-obs-${idx}`)?.value||'';
-  c.cd_faturamento.meses[idx]={mes,valor,obs};
-  saveAll();
-  showToast('Salvo');
+  // mantido por compatibilidade — edição agora via editFatMes()
   renderCdFaturamento();
 }
 
+let _fatMesEditIdx=null;
+const _fatMNomes=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const _fatMAbbr=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function _fatMesParseKey(mesStr){
+  // aceita "Nov/2026", "11/2026", "2026-11" etc → retorna {mm,yyyy} ou null
+  if(!mesStr)return null;
+  const m1=mesStr.match(/^(\d{4})-(\d{2})$/);
+  if(m1)return{yyyy:m1[1],mm:m1[2]};
+  const m2=mesStr.match(/^(\d{1,2})\/(\d{4})$/);
+  if(m2)return{yyyy:m2[2],mm:String(m2[1]).padStart(2,'0')};
+  const m3=mesStr.match(/^([A-Za-zÀ-ú]{3,})\/(\d{4})$/i);
+  if(m3){
+    const idx=_fatMAbbr.findIndex(a=>a.toLowerCase()===m3[1].toLowerCase().slice(0,3));
+    if(idx>=0)return{yyyy:m3[2],mm:String(idx+1).padStart(2,'0')};
+  }
+  return null;
+}
+
+function _fatMesFormatDisplay(mesStr){
+  const p=_fatMesParseKey(mesStr);
+  if(!p)return mesStr||'—';
+  return`${_fatMAbbr[+p.mm-1]}/${p.yyyy}`;
+}
+
 function addFatMes(){
+  _fatMesEditIdx=null;
+  const now=new Date();
+  document.getElementById('fat-sel-mes').value=String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('fat-sel-ano').value=String(now.getFullYear());
+  document.getElementById('fat-sel-valor').value='';
+  document.getElementById('fat-sel-obs').value='';
+  document.getElementById('fat-mes-modal-title').textContent='Registrar faturamento';
+  document.getElementById('fat-mes-del-btn').style.display='none';
+  openModal('fat-mes-modal');
+  setTimeout(()=>document.getElementById('fat-sel-valor')?.focus(),100);
+}
+
+function editFatMes(idx){
+  const c=clients.find(x=>x.id===currentDetailClientId);if(!c||!c.cd_faturamento)return;
+  const m=c.cd_faturamento.meses[idx];if(!m)return;
+  _fatMesEditIdx=idx;
+  const p=_fatMesParseKey(m.mes);
+  document.getElementById('fat-sel-mes').value=p?p.mm:String(new Date().getMonth()+1).padStart(2,'0');
+  document.getElementById('fat-sel-ano').value=p?p.yyyy:String(new Date().getFullYear());
+  document.getElementById('fat-sel-valor').value=m.valor||'';
+  document.getElementById('fat-sel-obs').value=m.obs||'';
+  document.getElementById('fat-mes-modal-title').textContent='Editar faturamento';
+  document.getElementById('fat-mes-del-btn').style.display='inline-flex';
+  openModal('fat-mes-modal');
+  setTimeout(()=>document.getElementById('fat-sel-valor')?.focus(),100);
+}
+
+function saveFatMesModal(){
   const c=clients.find(x=>x.id===currentDetailClientId);if(!c)return;
   if(!c.cd_faturamento)c.cd_faturamento={meta:null,meses:[]};
-  const now=new Date();
-  const mNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const mesAtual=`${mNames[now.getMonth()]}/${now.getFullYear()}`;
-  // não duplicar mês
-  const jaExiste=c.cd_faturamento.meses.some(m=>m.mes===mesAtual);
-  c.cd_faturamento.meses.unshift({mes:jaExiste?'':mesAtual,valor:'',obs:''});
-  saveAll();renderCdFaturamento();
-  setTimeout(()=>document.getElementById('fat-mes-0')?.focus(),60);
+  const mm=document.getElementById('fat-sel-mes').value;
+  const yyyy=document.getElementById('fat-sel-ano').value;
+  const mesStr=`${_fatMAbbr[+mm-1]}/${yyyy}`;
+  const valor=document.getElementById('fat-sel-valor').value.trim();
+  const obs=document.getElementById('fat-sel-obs').value.trim();
+  if(_fatMesEditIdx!==null){
+    c.cd_faturamento.meses[_fatMesEditIdx]={mes:mesStr,valor,obs};
+  } else {
+    // verificar duplicata
+    const jaIdx=c.cd_faturamento.meses.findIndex(m=>_fatMesParseKey(m.mes)?.mm===mm&&_fatMesParseKey(m.mes)?.yyyy===yyyy);
+    if(jaIdx>=0){c.cd_faturamento.meses[jaIdx]={mes:mesStr,valor,obs};}
+    else{c.cd_faturamento.meses.unshift({mes:mesStr,valor,obs});}
+  }
+  saveAll();closeModal('fat-mes-modal');renderCdFaturamento();showToast('Faturamento salvo ✓');
+}
+
+function delFatMesModal(){
+  if(_fatMesEditIdx===null)return;
+  const idx=_fatMesEditIdx;
+  deleteCallback=()=>{
+    const c=clients.find(x=>x.id===currentDetailClientId);if(!c||!c.cd_faturamento)return;
+    c.cd_faturamento.meses.splice(idx,1);
+    saveAll();renderCdFaturamento();closeModal('confirm-modal');closeModal('fat-mes-modal');
+  };
+  document.getElementById('confirm-text').textContent='Excluir este registro de faturamento?';
+  openModal('confirm-modal');
 }
 
 function delFatMes(idx){
