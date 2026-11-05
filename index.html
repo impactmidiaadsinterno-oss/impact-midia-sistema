@@ -2027,25 +2027,38 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
 
 <!-- HISTÓRICO MODAL -->
 <div class="mover" id="historico-modal">
-  <div class="modal" style="max-width:720px">
-    <div class="mhdr"><div class="mtitle">Editar histórico mensal</div><button class="mclose" onclick="closeModal('historico-modal')">×</button></div>
-    <div style="font-size:12px;color:var(--text-2);margin-bottom:4px">Configure o faturamento e métricas de meses anteriores. Os dados são usados nos gráficos de crescimento.</div>
-    <div style="font-size:11px;color:var(--brand);margin-bottom:18px;font-weight:500">Formato do mês: AAAA-MM (ex: 2025-01 para Janeiro de 2025)</div>
-    <!-- CABEÇALHO -->
-    <div style="display:grid;grid-template-columns:110px 1fr 1fr 1fr 70px 70px 36px;gap:6px;margin-bottom:6px;padding:0 2px">
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Mês</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Faturamento (R$)</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Despesas (R$)</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Clientes</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Novos</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Churns</span>
-      <span></span>
+  <div class="modal" style="max-width:580px">
+    <div class="mhdr"><div class="mtitle">Faturamento histórico mensal</div><button class="mclose" onclick="closeModal('historico-modal')">×</button></div>
+
+    <!-- SELETOR DE ANO -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px">
+      <button onclick="hSetAno(-1)" style="border:1px solid var(--border);background:var(--surface-2);border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text)">‹</button>
+      <span id="h-ano-label" style="font-size:17px;font-weight:700;color:var(--text);min-width:60px;text-align:center"></span>
+      <button onclick="hSetAno(1)" style="border:1px solid var(--border);background:var(--surface-2);border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text)">›</button>
     </div>
-    <!-- LINHAS -->
-    <div id="historico-rows" style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;padding-right:4px"></div>
-    <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-      <button class="btn btn-secondary" onclick="addHistoricoRow()">+ Adicionar mês</button>
-      <button class="btn btn-primary" onclick="saveHistorico()">Salvar histórico</button>
+
+    <!-- GRID DOS 12 MESES -->
+    <div id="h-meses-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px"></div>
+
+    <!-- PAINEL DE EDIÇÃO DO MÊS SELECIONADO -->
+    <div id="h-edit-panel" style="display:none;background:var(--surface-2);border:1px solid var(--brand);border-radius:var(--radius-md);padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:12px" id="h-edit-titulo"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div><label class="lbl">Faturamento (R$) *</label><input class="inp" id="h-fat" type="number" placeholder="0" min="0"/></div>
+        <div><label class="lbl">Despesas (R$)</label><input class="inp" id="h-desp" type="number" placeholder="0" min="0"/></div>
+        <div><label class="lbl">Clientes ativos</label><input class="inp" id="h-cli" type="number" placeholder="0" min="0"/></div>
+        <div><label class="lbl">Novos clientes</label><input class="inp" id="h-new" type="number" placeholder="0" min="0"/></div>
+        <div><label class="lbl">Churns</label><input class="inp" id="h-churn" type="number" placeholder="0" min="0"/></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="hSalvarMes()">✅ Salvar mês</button>
+        <button class="btn btn-secondary" onclick="hCancelarEdicao()">Cancelar</button>
+        <button class="btn btn-danger" onclick="hExcluirMes()" style="margin-left:auto">🗑 Excluir</button>
+      </div>
+    </div>
+
+    <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('historico-modal')">Fechar</button>
     </div>
   </div>
 </div>
@@ -5838,75 +5851,110 @@ function deleteVendaPontual(id){
 }
 
 // HISTÓRICO MODAL
-let histTemp=[];
+let hAnoSel=new Date().getFullYear();
+let hMesSel=null;
+const H_MESES_NOMES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function openHistoricoModal(){
-  histTemp=JSON.parse(JSON.stringify(monthlyHistory));
-  _renderHistoricoRows();
+  hAnoSel=new Date().getFullYear();
+  hMesSel=null;
+  _hRenderAno();
+  _hRenderGrid();
+  _hFecharEdicao();
   openModal('historico-modal');
 }
 
-function _syncHistTempFromDOM(){
-  const rows=document.getElementById('historico-rows');
-  if(!rows) return;
-  const divs=rows.querySelectorAll('[data-hrow]');
-  divs.forEach(div=>{
-    const idx=+div.getAttribute('data-hrow');
-    if(!histTemp[idx]) return;
-    const inps=div.querySelectorAll('input');
-    if(inps[0]) histTemp[idx].month=inps[0].value.trim();
-    if(inps[1]) histTemp[idx].revenue=+inps[1].value||0;
-    if(inps[2]) histTemp[idx].expenses=+inps[2].value||0;
-    if(inps[3]) histTemp[idx].clients=+inps[3].value||0;
-    if(inps[4]) histTemp[idx].new_clients=+inps[4].value||0;
-    if(inps[5]) histTemp[idx].churns=+inps[5].value||0;
-  });
+function hSetAno(delta){
+  hAnoSel+=delta;
+  if(hAnoSel<2020)hAnoSel=2020;
+  if(hAnoSel>2030)hAnoSel=2030;
+  hMesSel=null;
+  _hRenderAno();
+  _hRenderGrid();
+  _hFecharEdicao();
 }
 
-function _renderHistoricoRows(){
-  const container=document.getElementById('historico-rows');
-  container.innerHTML=histTemp.map((h,i)=>`
-    <div data-hrow="${i}" style="display:grid;grid-template-columns:110px 1fr 1fr 1fr 70px 70px 36px;gap:6px;align-items:center">
-      <input class="inp" style="padding:6px 8px;font-size:12px;font-family:monospace" value="${h.month}" placeholder="2025-01" maxlength="7"/>
-      <input class="inp" style="padding:6px 8px;font-size:12px" type="number" value="${h.revenue||0}" placeholder="0" min="0"/>
-      <input class="inp" style="padding:6px 8px;font-size:12px" type="number" value="${h.expenses||0}" placeholder="0" min="0"/>
-      <input class="inp" style="padding:6px 8px;font-size:12px" type="number" value="${h.clients||0}" placeholder="0" min="0"/>
-      <input class="inp" style="padding:6px 8px;font-size:12px" type="number" value="${h.new_clients||0}" placeholder="0" min="0"/>
-      <input class="inp" style="padding:6px 8px;font-size:12px" type="number" value="${h.churns||0}" placeholder="0" min="0"/>
-      <button class="btn btn-danger btn-sm" style="padding:4px 7px;font-size:14px;line-height:1" onclick="deleteHistoricoRow(${i})">×</button>
-    </div>
-  `).join('');
+function _hRenderAno(){
+  const el=document.getElementById('h-ano-label');
+  if(el)el.textContent=hAnoSel;
 }
 
-function deleteHistoricoRow(idx){
-  _syncHistTempFromDOM();
-  histTemp.splice(idx,1);
-  _renderHistoricoRows();
+function _hRenderGrid(){
+  const grid=document.getElementById('h-meses-grid');
+  if(!grid)return;
+  grid.innerHTML=H_MESES_NOMES.map((nome,i)=>{
+    const mm=String(i+1).padStart(2,'0');
+    const key=`${hAnoSel}-${mm}`;
+    const entry=monthlyHistory.find(h=>h.month===key);
+    const temDado=entry&&(entry.revenue||entry.expenses||entry.clients);
+    const ativo=hMesSel===key;
+    const bg=ativo?'var(--brand)':temDado?'var(--surface-3)':'var(--surface-2)';
+    const cor=ativo?'#fff':temDado?'var(--text)':'var(--text-2)';
+    const borda=ativo?'2px solid var(--brand)':temDado?'1px solid var(--brand-muted,#4a90d9)':'1px solid var(--border)';
+    const sub=temDado?`<div style="font-size:10px;margin-top:2px;opacity:.8">${fmt(entry.revenue)}</div>`:'';
+    return`<button onclick="hSelecionarMes('${key}')" style="border:${borda};background:${bg};color:${cor};border-radius:8px;padding:10px 4px;cursor:pointer;text-align:center;transition:all .15s">
+      <div style="font-size:12px;font-weight:600">${nome.slice(0,3)}</div>${sub}
+    </button>`;
+  }).join('');
 }
 
-function addHistoricoRow(){
-  _syncHistTempFromDOM();
-  let suggestMonth='';
-  if(histTemp.length>0){
-    const months=histTemp.map(h=>h.month).filter(m=>m&&m.match(/^\d{4}-\d{2}$/)).sort();
-    const last=months[months.length-1];
-    if(last){
-      const[y,m]=last.split('-').map(Number);
-      const nd=new Date(y,m,1);
-      suggestMonth=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
-    }
-  }
-  histTemp.push({month:suggestMonth,revenue:0,expenses:0,clients:0,new_clients:0,churns:0});
-  _renderHistoricoRows();
-  setTimeout(()=>{const c=document.getElementById('historico-rows');if(c)c.scrollTop=c.scrollHeight},50);
+function hSelecionarMes(key){
+  hMesSel=key;
+  _hRenderGrid();
+  const entry=monthlyHistory.find(h=>h.month===key)||{};
+  const[y,m]=key.split('-');
+  const nome=H_MESES_NOMES[+m-1];
+  const titulo=document.getElementById('h-edit-titulo');
+  if(titulo)titulo.textContent=`${nome} de ${y}`;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  set('h-fat',entry.revenue||'');
+  set('h-desp',entry.expenses||'');
+  set('h-cli',entry.clients||'');
+  set('h-new',entry.new_clients||'');
+  set('h-churn',entry.churns||'');
+  const panel=document.getElementById('h-edit-panel');
+  if(panel){panel.style.display='block';setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}),50);}
 }
 
-function saveHistorico(){
+function hSalvarMes(){
+  if(!hMesSel){showToast('Selecione um mês');return;}
+  const fat=+document.getElementById('h-fat')?.value||0;
+  const desp=+document.getElementById('h-desp')?.value||0;
+  const cli=+document.getElementById('h-cli')?.value||0;
+  const nw=+document.getElementById('h-new')?.value||0;
+  const ch=+document.getElementById('h-churn')?.value||0;
+  const idx=monthlyHistory.findIndex(h=>h.month===hMesSel);
+  const data={month:hMesSel,revenue:fat,expenses:desp,clients:cli,new_clients:nw,churns:ch};
+  if(idx>=0)monthlyHistory[idx]=data;
+  else{monthlyHistory.push(data);monthlyHistory.sort((a,b)=>a.month.localeCompare(b.month));}
   saveAll();
-  closeModal('historico-modal');
+  _hRenderGrid();
+  _hFecharEdicao();
   if(document.getElementById('page-crescimento').classList.contains('active'))renderCrescimento();
   if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
-  showToast('Histórico salvo');
+  showToast('Mês salvo ✓');
+}
+
+function hExcluirMes(){
+  if(!hMesSel)return;
+  const idx=monthlyHistory.findIndex(h=>h.month===hMesSel);
+  if(idx>=0)monthlyHistory.splice(idx,1);
+  saveAll();
+  hMesSel=null;
+  _hRenderGrid();
+  _hFecharEdicao();
+  showToast('Mês removido');
+}
+
+function hCancelarEdicao(){
+  hMesSel=null;
+  _hRenderGrid();
+  _hFecharEdicao();
+}
+
+function _hFecharEdicao(){
+  const panel=document.getElementById('h-edit-panel');
+  if(panel)panel.style.display='none';
 }
 
 // ══════════════════════════════════════════════════════
