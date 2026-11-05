@@ -8245,7 +8245,8 @@ function calcCsScore(c,hoje){
 }
 
 function renderCsFarol(ativos,hoje){
-  const lista=ativos.map(c=>{
+  // IMPORTANTE: ordena por company_name (ordem fixa) para evitar bug de reordenação ao mudar status
+  const lista=[...ativos].sort((a,b)=>a.company_name.localeCompare(b.company_name,'pt-BR')).map(c=>{
     const cs=c.cd_cs||{};
     const pct=calcCsScore(c,hoje);
     const nps=cs.nps_atual;
@@ -8260,7 +8261,7 @@ function renderCsFarol(ativos,hoje){
     else if(pct>=40){cor='#d97706';emoji='🟡';status='Atenção';}
     else{cor='#dc2626';emoji='🔴';status='Em risco';}
     return{c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu,ltv,ticket};
-  }).sort((a,b)=>a.pct-b.pct);
+  });
 
   const saudaveis=lista.filter(x=>x.pct>=70).length;
   const atencao=lista.filter(x=>x.pct>=40&&x.pct<70).length;
@@ -8332,25 +8333,12 @@ function renderCsFarol(ativos,hoje){
           </div>
           <button type="button" class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
         </div>
-        <!-- Linha 2: indicadores + renovação -->
+        <!-- Linha 2: indicadores -->
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
           ${nps!=null?`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;background:${nps>=9?'rgba(22,163,74,.1)':nps>=7?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'}">NPS ${nps}</span>`:`<span style="font-size:11px;color:var(--text-3);background:var(--surface-2);padding:2px 8px;border-radius:5px">NPS —</span>`}
           <span style="font-size:11px;padding:2px 8px;border-radius:5px;background:${diasFeed===null?'var(--surface-2)':diasFeed<=7?'rgba(22,163,74,.1)':diasFeed<=14?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasFeed===null?'var(--text-3)':diasFeed<=7?'#16a34a':diasFeed<=14?'#d97706':'#dc2626'}">💬 ${diasFeed===null?'Sem feedback':diasFeed+'d'}</span>
           <span style="font-size:11px;padding:2px 8px;border-radius:5px;background:${diasReu===null?'var(--surface-2)':diasReu<=30?'rgba(22,163,74,.1)':diasReu<=45?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)'};color:${diasReu===null?'var(--text-3)':diasReu<=30?'#16a34a':diasReu<=45?'#d97706':'#dc2626'}">📅 ${diasReu===null?'Sem reunião':diasReu+'d'}</span>
           ${cs.onboarding_feito?`<span style="font-size:11px;color:#16a34a;padding:2px 8px;border-radius:5px;background:rgba(22,163,74,.1)">🚀 Onb ✓</span>`:`<span style="font-size:11px;color:#dc2626;padding:2px 8px;border-radius:5px;background:rgba(220,38,38,.08)">🚀 Sem onb</span>`}
-          <!-- Renovação inline -->
-          <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--text-3)">Renovação:</span>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;color:${cs.renovado===true?'#16a34a':'var(--text-2)'}">
-              <input type="radio" name="ren-${c.id}" value="sim" ${cs.renovado===true?'checked':''} style="accent-color:#16a34a" onchange="saveCsRenovadoStatus('${c.id}',true)"/> Renovou
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;color:${cs.renovado===false?'#dc2626':'var(--text-2)'}">
-              <input type="radio" name="ren-${c.id}" value="nao" ${cs.renovado===false?'checked':''} style="accent-color:#dc2626" onchange="saveCsRenovadoStatus('${c.id}',false)"/> Cancelou
-            </label>
-            <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;color:${cs.renovado===undefined||cs.renovado===null?'var(--text-3)':'var(--text-2)'}">
-              <input type="radio" name="ren-${c.id}" value="pend" ${cs.renovado===undefined||cs.renovado===null?'checked':''} style="accent-color:#6b7280" onchange="saveCsRenovadoStatus('${c.id}',null)"/> Pendente
-            </label>
-          </div>
         </div>
         <!-- Barra de contrato -->
         ${(()=>{const ct=_csContratoInfo(c,hoje);if(!ct)return'';return`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
