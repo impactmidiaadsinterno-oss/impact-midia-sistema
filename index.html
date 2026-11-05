@@ -2025,6 +2025,33 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
   </div>
 </div>
 
+<!-- MODAL REUNIÃO -->
+<div class="mover" id="reuniao-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="mhdr"><div class="mtitle" id="reun-modal-title">Nova reunião</div><button class="mclose" onclick="closeModal('reuniao-modal')">×</button></div>
+    <input type="hidden" id="reun-id"/>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="fgroup"><label class="lbl">Cliente *</label>
+        <select class="inp" id="reun-cliente"><option value="">Selecione...</option></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 120px;gap:10px">
+        <div class="fgroup"><label class="lbl">Data *</label><input class="inp" type="date" id="reun-data"/></div>
+        <div class="fgroup"><label class="lbl">Horário</label><input class="inp" type="time" id="reun-horario"/></div>
+      </div>
+      <div class="fgroup"><label class="lbl">Observação</label><input class="inp" id="reun-obs" placeholder="Pauta, link de meet..."/></div>
+      <div class="fgroup"><label class="lbl">Resumo da reunião</label>
+        <textarea class="inp" id="reun-resumo" rows="3" placeholder="O que foi discutido, decisões tomadas..." style="resize:vertical"></textarea>
+      </div>
+      <div class="fgroup"><label class="lbl">Link da gravação (vídeo)</label><input class="inp" id="reun-video" placeholder="https://..."/></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <button class="btn btn-primary" onclick="salvarReuniao()">Salvar</button>
+      <button class="btn btn-secondary" onclick="closeModal('reuniao-modal')">Cancelar</button>
+      <button id="reun-del-btn" class="btn btn-danger" style="margin-left:auto;display:none" onclick="excluirReuniao()">Excluir</button>
+    </div>
+  </div>
+</div>
+
 <!-- FAT MES MODAL (dentro do detalhe do cliente) -->
 <div class="mover" id="fat-mes-modal">
   <div class="modal" style="max-width:420px">
@@ -6774,7 +6801,7 @@ function openClientDetail(id){
   const managerName=c.manager||c.manager_name||'—';
   const mu=systemUsers.find(u=>u.name===managerName);
   document.getElementById('cd-title').textContent=c.company_name;
-  document.getElementById('cd-sub').textContent=[c.niche,c.city].filter(Boolean).join(' · ');
+  document.getElementById('cd-sub').textContent=[c.contact_name,c.niche,c.city].filter(Boolean).join(' · ');
   const healthMap={saudavel:{cls:'b-green',label:'🟢 Saudável'},atencao:{cls:'b-yellow',label:'🟡 Atenção'},risco:{cls:'b-red',label:'🔴 Risco'}};
   const hs=healthMap[c.cd_health];
   document.getElementById('cd-health-badge').innerHTML=hs?`<span class="badge ${hs.cls}">${hs.label}</span>`:'';
@@ -7906,8 +7933,8 @@ function renderCs(){
       <button class="client-tab" onclick="csSetTab('renovacoes',this)">🔄 Renovações</button>
       <button class="client-tab" onclick="csSetTab('tarefas',this)">✅ Tarefas</button>
       <button class="client-tab" onclick="csSetTab('oportunidades',this)">💡 Oportunidades</button>
-      <button class="client-tab" onclick="csSetTab('log',this)">📝 Log</button>
-      <button class="client-tab" onclick="csSetTab('checklist',this)">📋 Checklist</button>
+      <button class="client-tab" onclick="csSetTab('reunioes',this)">📅 Reuniões</button>
+      <button class="client-tab" onclick="csSetTab('rotina',this)">📆 Rotina Semanal</button>
       <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">🔔 Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
     </div>
 
@@ -7917,8 +7944,8 @@ function renderCs(){
     <div id="cs-tab-renovacoes" class="cs-tab" style="display:none">${renderCsRenovacoes(ativos,hoje)}</div>
     <div id="cs-tab-tarefas" class="cs-tab" style="display:none">${renderCsTarefas(ativos)}</div>
     <div id="cs-tab-oportunidades" class="cs-tab" style="display:none">${renderCsOportunidades(ativos)}</div>
-    <div id="cs-tab-log" class="cs-tab" style="display:none">${renderCsLog(ativos)}</div>
-    <div id="cs-tab-checklist" class="cs-tab" style="display:none">${renderCsChecklist(ativos,hoje)}</div>
+    <div id="cs-tab-reunioes" class="cs-tab" style="display:none">${renderCsReunioes(ativos,hoje)}</div>
+    <div id="cs-tab-rotina" class="cs-tab" style="display:none">${renderCsRotina()}</div>
     <div id="cs-tab-alertas" class="cs-tab" style="display:none">${renderCsAlertas(ativos,hoje)}</div>
   `;
   // Show first tab (farol)
@@ -8225,15 +8252,14 @@ function csSetFarolStatus(clientId,nivel){
   c.churn_risk=nivel;
   saveAll();
   showToast({baixo:'🟢 Marcado como saudável',medio:'🟡 Marcado como atenção',alto:'🔴 Marcado como em risco'}[nivel]);
-  // Re-render apenas o farol completo para atualizar cards e KPIs sem perder estado da página
-  const hoje=new Date();
+  // Atualiza APENAS o card deste cliente, sem re-renderizar tudo (evita bug de outros cards mudarem)
+  const hoje=new Date();hoje.setHours(0,0,0,0);
   const _isCsU=currentSystemUser&&currentSystemUser.level==='cs';
   const ativos=clients.filter(c2=>c2.status==='ativo'&&(_isCsU?c2.cs_id===currentSystemUser.id:true));
+  // Re-renderiza só o farol inteiro (recria os cards com estado correto do localStorage)
   const tabFarol=document.getElementById('cs-tab-farol');
   if(tabFarol)tabFarol.innerHTML=renderCsFarol(ativos,hoje);
-  // Atualiza KPIs no topo
   _renderCsKpis(ativos,hoje);
-  // Atualiza painel admin se existir
   renderDashboardCsPanel();
 }
 function saveCsFarolObs(clientId,val){
@@ -9027,6 +9053,224 @@ function _calcCsAlertas(ativos,hoje){
   return alertas;
 }
 
+// ══════════════════════════════════════════════════════
+// REUNIÕES
+// ══════════════════════════════════════════════════════
+function renderCsReunioes(ativos,hoje){
+  if(!window.csReunioes)window.csReunioes=S.load('cs_reunioes',[]);
+  const reunioes=window.csReunioes;
+  const sorted=[...reunioes].sort((a,b)=>a.data.localeCompare(b.data));
+  const proximas=sorted.filter(r=>r.data>=hoje);
+  const passadas=sorted.filter(r=>r.data<hoje).reverse();
+
+  return`
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)">Reuniões com clientes</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:2px">Agende, registre e acompanhe as reuniões de resultados</div>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalReuniao()">+ Nova reunião</button>
+  </div>
+
+  <!-- PLAYBOOK -->
+  <div style="background:linear-gradient(135deg,#0161ff12,#0161ff06);border:1px solid #0161ff30;border-radius:12px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
+    <div style="font-size:28px">📖</div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">Playbook de Reunião de Resultados</div>
+      <div style="font-size:12px;color:var(--text-2)">Padrão de condução das reuniões com clientes</div>
+    </div>
+    <div>
+      ${window.csPlaybookReuniaoUrl
+        ?`<a href="${window.csPlaybookReuniaoUrl}" target="_blank" class="btn btn-secondary btn-sm">📄 Abrir playbook</a>`
+        :`<button class="btn btn-secondary btn-sm" onclick="uploadPlaybookReuniao()">⬆️ Subir playbook</button>`}
+    </div>
+  </div>
+  <input type="file" id="pb-reuniao-file" accept=".pdf,.doc,.docx,.pptx,.mp4,.mov" style="display:none" onchange="salvarPlaybookReuniao(this)"/>
+
+  <!-- PRÓXIMAS -->
+  ${proximas.length>0?`
+  <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Próximas reuniões</div>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+    ${proximas.map(r=>{
+      const c=ativos.find(x=>x.id===r.clientId);
+      const diff=Math.round((new Date(r.data)-new Date(hoje))/(1000*60*60*24));
+      const badge=diff===0?'<span style="background:#0161ff;color:#fff;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">HOJE</span>'
+        :diff===1?'<span style="background:#f59e0b;color:#fff;border-radius:4px;padding:1px 7px;font-size:10px;font-weight:700">AMANHÃ</span>'
+        :`<span style="background:var(--surface-3);color:var(--text-2);border-radius:4px;padding:1px 7px;font-size:10px">em ${diff}d</span>`;
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <div style="font-size:22px">📅</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${c?c.company_name:r.clientNome||'—'}</div>
+          <div style="font-size:12px;color:var(--text-2);margin-top:2px">${new Date(r.data+'T12:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}${r.horario?' às '+r.horario:''}</div>
+          ${r.obs?`<div style="font-size:11px;color:var(--text-3);margin-top:3px">${r.obs}</div>`:''}
+        </div>
+        ${badge}
+        <button class="btn btn-secondary btn-sm" onclick="abrirModalReuniao('${r.id}')">✏️</button>
+      </div>`;
+    }).join('')}
+  </div>`:``}
+
+  <!-- PASSADAS -->
+  ${passadas.length>0?`
+  <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Reuniões realizadas</div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    ${passadas.map(r=>{
+      const c=ativos.find(x=>x.id===r.clientId);
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;opacity:.85">
+        <div style="font-size:22px">✅</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${c?c.company_name:r.clientNome||'—'}</div>
+          <div style="font-size:12px;color:var(--text-2);margin-top:2px">${new Date(r.data+'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})}${r.horario?' às '+r.horario:''}</div>
+          ${r.resumo?`<div style="font-size:11px;color:var(--text-2);margin-top:4px;padding:6px 8px;background:var(--surface-2);border-radius:6px;border-left:3px solid var(--brand)">📝 ${r.resumo}</div>`:''}
+          ${r.videoUrl?`<div style="margin-top:6px"><a href="${r.videoUrl}" target="_blank" style="font-size:11px;color:var(--brand);font-weight:600">🎥 Ver gravação</a></div>`:''}
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="abrirModalReuniao('${r.id}')">✏️</button>
+      </div>`;
+    }).join('')}
+  </div>`:``}
+
+  ${reunioes.length===0?`<div style="text-align:center;padding:48px 24px;color:var(--text-3)">
+    <div style="font-size:40px;margin-bottom:12px">📅</div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:4px">Nenhuma reunião registrada</div>
+    <div style="font-size:12px">Clique em "+ Nova reunião" para agendar</div>
+  </div>`:''}
+  `;
+}
+
+function renderCsRotina(){
+  return`
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)">Rotina Semanal</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:2px">Atividades planejadas para cada dia da semana</div>
+    </div>
+  </div>
+
+  <!-- PLAYBOOK -->
+  <div style="background:linear-gradient(135deg,#7c3aed12,#7c3aed06);border:1px solid #7c3aed30;border-radius:12px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
+    <div style="font-size:28px">📖</div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">Playbook de Rotina Semanal</div>
+      <div style="font-size:12px;color:var(--text-2)">Guia completo de como conduzir a semana de CS</div>
+    </div>
+    <div>
+      ${window.csPlaybookRotinaUrl
+        ?`<a href="${window.csPlaybookRotinaUrl}" target="_blank" class="btn btn-secondary btn-sm">📄 Abrir playbook</a>`
+        :`<button class="btn btn-secondary btn-sm" onclick="uploadPlaybookRotina()">⬆️ Subir playbook</button>`}
+    </div>
+  </div>
+  <input type="file" id="pb-rotina-file" accept=".pdf,.doc,.docx,.pptx" style="display:none" onchange="salvarPlaybookRotina(this)"/>
+
+  <!-- DIAS DA SEMANA -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+    ${['Segunda','Terça','Quarta','Quinta','Sexta'].map((dia,i)=>{
+      const key=`rotina_${dia.toLowerCase().replace('ç','c').replace('ã','a')}`;
+      const tarefas=(window.csRotinaSemanal||{})[key]||[];
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800">${dia.slice(0,3).toUpperCase()}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${dia}-feira</div>
+          <button onclick="adicionarRotinaItem('${key}')" style="margin-left:auto;border:none;background:none;cursor:pointer;color:var(--brand);font-size:18px;line-height:1" title="Adicionar">+</button>
+        </div>
+        <div id="rotina-lista-${key}" style="display:flex;flex-direction:column;gap:6px">
+          ${tarefas.length===0
+            ?`<div style="font-size:11px;color:var(--text-3);text-align:center;padding:8px 0">Nenhuma tarefa</div>`
+            :tarefas.map((t,ti)=>`<div style="display:flex;align-items:center;gap:6px;background:var(--surface-2);border-radius:6px;padding:6px 8px">
+                <span style="font-size:12px;flex:1;color:var(--text)">${t}</span>
+                <button onclick="removerRotinaItem('${key}',${ti})" style="border:none;background:none;cursor:pointer;color:var(--text-3);font-size:14px" title="Remover">×</button>
+              </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  `;
+}
+
+// ── Helpers Reuniões ──
+function abrirModalReuniao(id){
+  if(!window.csReunioes)window.csReunioes=S.load('cs_reunioes',[]);
+  const r=id?window.csReunioes.find(x=>x.id===id):null;
+  document.getElementById('reun-modal-title').textContent=r?'Editar reunião':'Nova reunião';
+  // popular clientes
+  const isCs=currentSystemUser?.level==='cs';
+  const clientesAtivos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
+  const sel=document.getElementById('reun-cliente');
+  sel.innerHTML='<option value="">Selecione o cliente...</option>'+clientesAtivos.map(c=>`<option value="${c.id}"${r&&r.clientId===c.id?' selected':''}>${c.company_name}</option>`).join('');
+  document.getElementById('reun-data').value=r?r.data:'';
+  document.getElementById('reun-horario').value=r?r.horario||'':'';
+  document.getElementById('reun-obs').value=r?r.obs||'':'';
+  document.getElementById('reun-resumo').value=r?r.resumo||'':'';
+  document.getElementById('reun-video').value=r?r.videoUrl||'':'';
+  document.getElementById('reun-id').value=r?r.id:'';
+  document.getElementById('reun-del-btn').style.display=r?'inline-flex':'none';
+  openModal('reuniao-modal');
+}
+
+function salvarReuniao(){
+  if(!window.csReunioes)window.csReunioes=[];
+  const id=document.getElementById('reun-id').value;
+  const clientId=document.getElementById('reun-cliente').value;
+  const c=clients.find(x=>x.id===clientId);
+  const data=document.getElementById('reun-data').value;
+  if(!clientId||!data){showToast('Selecione o cliente e a data');return;}
+  const obj={id:id||uid(),clientId,clientNome:c?c.company_name:'',data,horario:document.getElementById('reun-horario').value,obs:document.getElementById('reun-obs').value,resumo:document.getElementById('reun-resumo').value,videoUrl:document.getElementById('reun-video').value};
+  if(id){const idx=window.csReunioes.findIndex(x=>x.id===id);if(idx>=0)window.csReunioes[idx]=obj;else window.csReunioes.push(obj);}
+  else{window.csReunioes.push(obj);}
+  S.save('cs_reunioes',window.csReunioes);
+  closeModal('reuniao-modal');
+  renderCsPage();
+  showToast('Reunião salva ✓');
+}
+
+function excluirReuniao(){
+  const id=document.getElementById('reun-id').value;if(!id)return;
+  deleteCallback=()=>{
+    window.csReunioes=(window.csReunioes||[]).filter(x=>x.id!==id);
+    S.save('cs_reunioes',window.csReunioes);
+    closeModal('confirm-modal');closeModal('reuniao-modal');renderCsPage();showToast('Reunião removida');
+  };
+  document.getElementById('confirm-text').textContent='Excluir esta reunião?';
+  openModal('confirm-modal');
+}
+
+function uploadPlaybookReuniao(){document.getElementById('pb-reuniao-file').click();}
+function salvarPlaybookReuniao(input){
+  const f=input.files[0];if(!f)return;
+  const url=URL.createObjectURL(f);
+  window.csPlaybookReuniaoUrl=url;
+  S.save('cs_playbook_reuniao_url',url);
+  renderCsPage();showToast('Playbook salvo');
+}
+
+function uploadPlaybookRotina(){document.getElementById('pb-rotina-file').click();}
+function salvarPlaybookRotina(input){
+  const f=input.files[0];if(!f)return;
+  const url=URL.createObjectURL(f);
+  window.csPlaybookRotinaUrl=url;
+  S.save('cs_playbook_rotina_url',url);
+  renderCsPage();showToast('Playbook salvo');
+}
+
+function adicionarRotinaItem(key){
+  const txt=prompt('Nova tarefa para este dia:');
+  if(!txt||!txt.trim())return;
+  if(!window.csRotinaSemanal)window.csRotinaSemanal=S.load('cs_rotina_semanal',{});
+  if(!window.csRotinaSemanal[key])window.csRotinaSemanal[key]=[];
+  window.csRotinaSemanal[key].push(txt.trim());
+  S.save('cs_rotina_semanal',window.csRotinaSemanal);
+  renderCsPage();
+}
+
+function removerRotinaItem(key,idx){
+  if(!window.csRotinaSemanal||!window.csRotinaSemanal[key])return;
+  window.csRotinaSemanal[key].splice(idx,1);
+  S.save('cs_rotina_semanal',window.csRotinaSemanal);
+  renderCsPage();
+}
+
+// ══════════════════════════════════════════════════════
+// ALERTAS
+// ══════════════════════════════════════════════════════
 function renderCsAlertas(ativos,hoje){
   const alertas=_calcCsAlertas(ativos,hoje);
   const pendentes=alertas.filter(a=>!csNotificacoesResolvidas.includes(a.key));
