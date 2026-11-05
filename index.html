@@ -8256,18 +8256,21 @@ function renderCsFarol(ativos,hoje){
     const ticket=Number(c.ticket_value||c.contract_value||0);
     const meses=Number(c.contract_months||0);
     const ltv=ticket&&meses?ticket*meses:0;
+    // Cor/status vem do churn_risk manual (fonte de verdade), não do pct calculado
     let cor,emoji,status;
-    if(pct>=70){cor='#16a34a';emoji='🟢';status='Saudável';}
-    else if(pct>=40){cor='#d97706';emoji='🟡';status='Atenção';}
-    else{cor='#dc2626';emoji='🔴';status='Em risco';}
+    if(c.churn_risk==='baixo'){cor='#16a34a';emoji='🟢';status='Saudável';}
+    else if(c.churn_risk==='medio'){cor='#d97706';emoji='🟡';status='Atenção';}
+    else if(c.churn_risk==='alto'){cor='#dc2626';emoji='🔴';status='Em risco';}
+    else{cor='#6b7280';emoji='⬜';status='Sem farol';}
     return{c,cs,pct,cor,emoji,status,nps,diasFeed,diasReu,ltv,ticket};
   });
 
-  const saudaveis=lista.filter(x=>x.pct>=70).length;
-  const atencao=lista.filter(x=>x.pct>=40&&x.pct<70).length;
-  const risco=lista.filter(x=>x.pct<40).length;
+  // Contadores usam churn_risk diretamente (não o pct) — mesma lógica do dashboard
+  const saudaveis=lista.filter(x=>x.c.churn_risk==='baixo').length;
+  const atencao=lista.filter(x=>x.c.churn_risk==='medio').length;
+  const risco=lista.filter(x=>x.c.churn_risk==='alto').length;
   const ltvTotal=lista.reduce((s,x)=>s+x.ltv,0);
-  const ltvRisco=lista.filter(x=>x.pct<40).reduce((s,x)=>s+x.ltv,0);
+  const ltvRisco=lista.filter(x=>x.c.churn_risk==='alto').reduce((s,x)=>s+x.ltv,0);
   const fmtR=v=>v?'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}):'—';
   const npsMedia=lista.filter(x=>x.nps!=null).length?Math.round(lista.filter(x=>x.nps!=null).reduce((s,x)=>s+x.nps,0)/lista.filter(x=>x.nps!=null).length*10)/10:null;
 
