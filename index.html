@@ -2011,25 +2011,71 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
 
 <!-- HISTÓRICO MODAL -->
 <div class="mover" id="historico-modal">
-  <div class="modal" style="max-width:720px">
-    <div class="mhdr"><div class="mtitle">Editar histórico mensal</div><button class="mclose" onclick="closeModal('historico-modal')">×</button></div>
-    <div style="font-size:12px;color:var(--text-2);margin-bottom:4px">Configure o faturamento e métricas de meses anteriores. Os dados são usados nos gráficos de crescimento.</div>
-    <div style="font-size:11px;color:var(--brand);margin-bottom:18px;font-weight:500">Formato do mês: AAAA-MM (ex: 2025-01 para Janeiro de 2025)</div>
-    <!-- CABEÇALHO -->
-    <div style="display:grid;grid-template-columns:110px 1fr 1fr 1fr 70px 70px 36px;gap:6px;margin-bottom:6px;padding:0 2px">
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Mês</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Faturamento (R$)</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Despesas (R$)</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Clientes</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Novos</span>
-      <span style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Churns</span>
+  <div class="modal" style="max-width:760px">
+    <div class="mhdr"><div class="mtitle">Histórico mensal de faturamento</div><button class="mclose" onclick="closeModal('historico-modal')">×</button></div>
+
+    <!-- ADICIONAR NOVO MÊS -->
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);margin-bottom:10px">Adicionar / editar mês</div>
+      <div style="display:grid;grid-template-columns:120px 100px 1fr 1fr 70px 70px 70px auto;gap:8px;align-items:end">
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Mês</div>
+          <select class="inp" id="hn-mes" style="padding:7px 8px;font-size:12px">
+            <option value="01">Janeiro</option><option value="02">Fevereiro</option>
+            <option value="03">Março</option><option value="04">Abril</option>
+            <option value="05">Maio</option><option value="06">Junho</option>
+            <option value="07">Julho</option><option value="08">Agosto</option>
+            <option value="09">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Ano</div>
+          <select class="inp" id="hn-ano" style="padding:7px 8px;font-size:12px">
+            <option value="2022">2022</option><option value="2023">2023</option>
+            <option value="2024">2024</option><option value="2025">2025</option>
+            <option value="2026" selected>2026</option><option value="2027">2027</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Faturamento (R$)</div>
+          <input class="inp" id="hn-fat" type="number" placeholder="0" min="0" style="padding:7px 8px;font-size:12px"/>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Despesas (R$)</div>
+          <input class="inp" id="hn-desp" type="number" placeholder="0" min="0" style="padding:7px 8px;font-size:12px"/>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Clientes</div>
+          <input class="inp" id="hn-cli" type="number" placeholder="0" min="0" style="padding:7px 8px;font-size:12px"/>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Novos</div>
+          <input class="inp" id="hn-new" type="number" placeholder="0" min="0" style="padding:7px 8px;font-size:12px"/>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Churns</div>
+          <input class="inp" id="hn-churn" type="number" placeholder="0" min="0" style="padding:7px 8px;font-size:12px"/>
+        </div>
+        <button class="btn btn-primary" onclick="addHistoricoRow()" style="white-space:nowrap;padding:7px 14px;font-size:12px">Salvar mês</button>
+      </div>
+      <div id="hn-feedback" style="font-size:11px;margin-top:8px;color:#16a34a;display:none"></div>
+    </div>
+
+    <!-- CABEÇALHO DA TABELA -->
+    <div style="display:grid;grid-template-columns:120px 1fr 1fr 70px 60px 60px 36px;gap:6px;padding:0 4px;margin-bottom:6px">
+      <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Mês</span>
+      <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Faturamento</span>
+      <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Despesas</span>
+      <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Clientes</span>
+      <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Novos</span>
+      <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em">Churns</span>
       <span></span>
     </div>
-    <!-- LINHAS -->
-    <div id="historico-rows" style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto;padding-right:4px"></div>
-    <div style="display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-      <button class="btn btn-secondary" onclick="addHistoricoRow()">+ Adicionar mês</button>
-      <button class="btn btn-primary" onclick="saveHistorico()">Salvar histórico</button>
+    <!-- LINHAS SALVAS -->
+    <div id="historico-rows" style="display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto;padding-right:4px"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal('historico-modal')">Fechar</button>
     </div>
   </div>
 </div>
