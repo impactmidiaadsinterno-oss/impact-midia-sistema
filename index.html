@@ -892,7 +892,7 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       </div>
     </div>
   </div>
-  <!-- PAINEL CS — só admins -->
+  <!-- PAINEL CS — admins e gestoras -->
   <div id="dash-cs-panel" class="admin-only" style="margin-top:20px"></div>
 </div>
 
@@ -987,6 +987,8 @@ body.is-gestor .admin-only,.body.is-sdr .admin-only{display:none!important}
       <div id="gestor-phase-list"></div>
     </div>
   </div>
+  <!-- Reuniões de Resultados (CS) -->
+  <div id="gestor-reunioes-resultados" style="margin-bottom:16px"></div>
   <div class="card cp" style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:600;margin-bottom:14px">📅 Agenda de reuniões</div>
     <div id="gestor-agenda-list"></div>
@@ -2025,29 +2027,29 @@ ALTER TABLE revenue_entries ENABLE ROW LEVEL SECURITY;</div>
   </div>
 </div>
 
-<!-- MODAL REUNIÃO -->
-<div class="mover" id="reuniao-modal">
-  <div class="modal" style="max-width:480px">
-    <div class="mhdr"><div class="mtitle" id="reun-modal-title">Nova reunião</div><button class="mclose" onclick="closeModal('reuniao-modal')">×</button></div>
+<!-- MODAL REUNIÃO DE RESULTADOS (CS) -->
+<div class="mover" id="cs-reuniao-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="mhdr"><div class="mtitle" id="reun-modal-title">Nova Reunião de Apresentação de Resultados</div><button class="mclose" onclick="closeModal('cs-reuniao-modal')">×</button></div>
     <input type="hidden" id="reun-id"/>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div class="fgroup"><label class="lbl">Cliente *</label>
-        <select class="inp" id="reun-cliente"><option value="">Selecione...</option></select>
+        <select class="inp" id="reun-cliente"><option value="">Selecione o cliente...</option></select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 120px;gap:10px">
-        <div class="fgroup"><label class="lbl">Data *</label><input class="inp" type="date" id="reun-data"/></div>
+      <div style="display:grid;grid-template-columns:1fr 130px;gap:10px">
+        <div class="fgroup"><label class="lbl">Data da reunião *</label><input class="inp" type="date" id="reun-data"/></div>
         <div class="fgroup"><label class="lbl">Horário</label><input class="inp" type="time" id="reun-horario"/></div>
       </div>
-      <div class="fgroup"><label class="lbl">Observação</label><input class="inp" id="reun-obs" placeholder="Pauta, link de meet..."/></div>
-      <div class="fgroup"><label class="lbl">Resumo da reunião</label>
-        <textarea class="inp" id="reun-resumo" rows="3" placeholder="O que foi discutido, decisões tomadas..." style="resize:vertical"></textarea>
+      <div class="fgroup"><label class="lbl">Observação / Pauta</label><input class="inp" id="reun-obs" placeholder="Ex: Pauta, link do Google Meet..."/></div>
+      <div class="fgroup"><label class="lbl">Resumo do que foi discutido</label>
+        <textarea class="inp" id="reun-resumo" rows="4" placeholder="O que foi discutido, decisões, próximos passos..." style="resize:vertical"></textarea>
       </div>
-      <div class="fgroup"><label class="lbl">Link da gravação (vídeo)</label><input class="inp" id="reun-video" placeholder="https://..."/></div>
+      <div class="fgroup"><label class="lbl">🎥 Link da gravação da reunião</label><input class="inp" id="reun-video" placeholder="https://drive.google.com/... ou https://loom.com/..."/></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
-      <button class="btn btn-primary" onclick="salvarReuniao()">Salvar</button>
-      <button class="btn btn-secondary" onclick="closeModal('reuniao-modal')">Cancelar</button>
-      <button id="reun-del-btn" class="btn btn-danger" style="margin-left:auto;display:none" onclick="excluirReuniao()">Excluir</button>
+      <button class="btn btn-primary" onclick="salvarReuniao()">💾 Salvar</button>
+      <button class="btn btn-secondary" onclick="closeModal('cs-reuniao-modal')">Cancelar</button>
+      <button id="reun-del-btn" class="btn btn-danger" style="margin-left:auto;display:none" onclick="excluirReuniao()">🗑 Excluir</button>
     </div>
   </div>
 </div>
@@ -3319,7 +3321,8 @@ function renderDashboardCsPanel(){
   const el=document.getElementById('dash-cs-panel');
   if(!el)return;
   const isAdm=currentSystemUser&&currentSystemUser.level==='admin';
-  if(!isAdm){el.innerHTML='';return;}
+  const isGestor=currentSystemUser&&currentSystemUser.level==='gestor';
+  if(!isAdm&&!isGestor){el.innerHTML='';return;}
 
   const hoje=new Date();
   const ativos=clients.filter(c=>c.status==='ativo');
@@ -3389,7 +3392,105 @@ function renderDashboardCsPanel(){
       </div>`;
     }).join('')}
   </div>`:''}
-</div>`;
+</div>
+
+${(()=>{
+  // Reuniões de Apresentação de Resultados (CS)
+  const reunioes=S.load('cs_reunioes',[]);
+  if(!reunioes.length)return'';
+  const hojeStr=hoje.toISOString().slice(0,10);
+  const limite=new Date(hoje);limite.setDate(limite.getDate()+14);
+  const limStr=limite.toISOString().slice(0,10);
+  const proximas=reunioes
+    .filter(r=>r.data>=hojeStr&&r.data<=limStr)
+    .sort((a,b)=>a.data.localeCompare(b.data));
+  const MESES2=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  if(!proximas.length)return'';
+  return`<div class="card cp" style="margin-top:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700">📅 Reuniões de Resultados — Próximos 14 dias</div>
+      <button class="btn btn-sm" onclick="nav('cs',null,null);setTimeout(()=>{const btn=document.querySelector('[onclick*=\\'csSetTab(\\'reunioes\\'\\')\\']');if(btn)btn.click();},400)" style="font-size:11px;padding:5px 12px">Ver todas →</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${proximas.map(r=>{
+        const c=clients.find(x=>x.id===r.clientId);
+        const d=new Date(r.data+'T12:00');
+        const isHoje=r.data===hojeStr;
+        const amanha=new Date(hoje);amanha.setDate(amanha.getDate()+1);
+        const isAmanha=r.data===amanha.toISOString().slice(0,10);
+        const diff=Math.round((d-hoje)/(1000*60*60*24));
+        const badge=isHoje?'<span style="background:#0161ff;color:#fff;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">HOJE</span>'
+          :isAmanha?'<span style="background:#f59e0b;color:#fff;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">AMANHÃ</span>'
+          :`<span style="background:var(--surface-3);color:var(--text-2);border-radius:4px;padding:2px 8px;font-size:10px">em ${diff}d</span>`;
+        // CS responsável
+        const csUser=c?systemUsers.find(u=>u.id===c.cs_id):null;
+        return`<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface-2);border-radius:10px;border-left:3px solid var(--brand)">
+          <div style="font-size:22px">📊</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${c?c.company_name:r.clientNome||'—'}</div>
+            <div style="font-size:11px;color:var(--text-2);margin-top:2px">${d.getDate()} ${MESES2[d.getMonth()]}${r.horario?' às '+r.horario:''}${csUser?' · CS: '+csUser.name.split(' ')[0]:''}</div>
+            ${r.obs?`<div style="font-size:11px;color:var(--text-3);margin-top:2px">${r.obs}</div>`:''}
+          </div>
+          ${badge}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+})()}`;
+}
+
+function renderReunioesDashboardGestor(){
+  // Mostra reuniões de resultados no painel da gestora
+  const el=document.getElementById('gestor-reunioes-resultados');
+  if(!el)return;
+  const isGestor=currentSystemUser&&currentSystemUser.level==='gestor';
+  if(!isGestor){el.innerHTML='';return;}
+
+  const reunioes=S.load('cs_reunioes',[]);
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const hojeStr=hoje.toISOString().slice(0,10);
+  const limite=new Date(hoje);limite.setDate(limite.getDate()+30);
+  const limStr=limite.toISOString().slice(0,10);
+  // Gestora vê reuniões dos clientes da sua carteira
+  const myClientIds=clients.filter(c=>clientBelongsTo(c,currentSystemUser)).map(c=>c.id);
+  const proximas=reunioes
+    .filter(r=>r.data>=hojeStr&&r.data<=limStr&&myClientIds.includes(r.clientId))
+    .sort((a,b)=>a.data.localeCompare(b.data));
+
+  if(!proximas.length){el.innerHTML='';return;}
+
+  const MESES2=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  el.innerHTML=`<div class="card cp">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700">📊 Reuniões de Apresentação de Resultados</div>
+      <span style="font-size:11px;color:var(--text-3)">${proximas.length} nos próximos 30 dias</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${proximas.map(r=>{
+        const c=clients.find(x=>x.id===r.clientId);
+        const d=new Date(r.data+'T12:00');
+        const isHoje2=r.data===hojeStr;
+        const amanha2=new Date(hoje);amanha2.setDate(amanha2.getDate()+1);
+        const isAmanha2=r.data===amanha2.toISOString().slice(0,10);
+        const diff=Math.round((new Date(r.data+'T12:00')-hoje)/(1000*60*60*24));
+        const badge=isHoje2?'<span style="background:#0161ff;color:#fff;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">HOJE</span>'
+          :isAmanha2?'<span style="background:#f59e0b;color:#fff;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">AMANHÃ</span>'
+          :`<span style="background:var(--surface-3);color:var(--text-2);border-radius:4px;padding:2px 8px;font-size:10px">em ${diff}d</span>`;
+        const csUser=c?systemUsers.find(u=>u.id===c.cs_id):null;
+        return`<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface-2);border-radius:10px;border-left:3px solid var(--brand)">
+          <div style="font-size:22px">📊</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${c?c.company_name:r.clientNome||'—'}</div>
+            <div style="font-size:11px;color:var(--text-2);margin-top:2px">${d.getDate()} ${MESES2[d.getMonth()]}${r.horario?' às '+r.horario:''}${csUser?' · CS: '+csUser.name.split(' ')[0]:''}</div>
+            ${r.obs?`<div style="font-size:11px;color:var(--text-3);margin-top:1px">📌 ${r.obs}</div>`:''}
+            ${r.resumo?`<div style="font-size:11px;color:var(--text-2);margin-top:4px;padding:5px 8px;background:var(--surface);border-radius:6px;border-left:2px solid var(--brand)">📝 ${r.resumo}</div>`:''}
+            ${r.videoUrl?`<div style="margin-top:4px"><a href="${r.videoUrl}" target="_blank" style="font-size:11px;color:var(--brand);font-weight:600">🎥 Ver gravação</a></div>`:''}
+          </div>
+          ${badge}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 
 function renderDashboard(){
@@ -6712,11 +6813,15 @@ function renderGestorDashboard(){
     }).join('')
     :'<div style="font-size:13px;color:var(--text-3);padding:24px 0;text-align:center">Nenhum cliente cadastrado ainda.<br>O administrador irá atribuir clientes a você.</div>';
 
+  // ── Painel de Reuniões de Resultados ──
+  renderReunioesDashboardGestor();
+
   // ── Agenda de reuniões ──
   const agendaEl=document.getElementById('gestor-agenda-list');
   if(agendaEl){
     const hoje2=new Date();hoje2.setHours(0,0,0,0);
-    // Coleta reuniões de todas as fontes: cd_proxima_reuniao e meetings array
+    const hoje2Str=hoje2.toISOString().slice(0,10);
+    // Coleta reuniões de todas as fontes: cd_proxima_reuniao, meetings array, e cs_reunioes
     const reunioes=[];
     myClients.forEach(c=>{
       // Próxima reunião do campo direto
@@ -6732,6 +6837,19 @@ function renderGestorDashboard(){
           if(d>=hoje2) reunioes.push({date:d,client:c,label:m.type||m.title||'Reunião',source:'meeting',time:m.time});
         });
       }
+    });
+    // Reuniões de Apresentação de Resultados da CS (cs_reunioes)
+    const csReunioesAll=S.load('cs_reunioes',[]);
+    csReunioesAll.forEach(r=>{
+      if(!r.data||r.data<hoje2Str)return;
+      const c=clients.find(x=>x.id===r.clientId);
+      if(!c)return;
+      // Gestora vê todos; CS vê só os seus
+      const isCs2=u.level==='cs';
+      if(isCs2&&c.cs_id!==u.id)return;
+      const d=new Date(r.data+'T'+(r.horario||'00:00')+':00');
+      const csUser=systemUsers.find(x=>x.id===c.cs_id);
+      reunioes.push({date:d,client:c,label:'📊 Apresentação de Resultados'+(csUser?' ('+csUser.name.split(' ')[0]+')':''),source:'cs_reuniao',time:r.horario,obs:r.obs});
     });
     // Ordena por data
     reunioes.sort((a,b)=>a.date-b.date);
@@ -6761,11 +6879,12 @@ function renderGestorDashboard(){
             ${labelDia} · ${d.getDate()} ${MESES[d.getMonth()]}
           </div>
           ${items.map(r=>`
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface-2);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:.15s" onclick="openClientDetail('${r.client.id}')" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--surface-2)'">
-              <div style="width:32px;height:32px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">📅</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:${r.source==='cs_reuniao'?'rgba(1,97,255,.06)':'var(--surface-2)'};border-radius:8px;margin-bottom:5px;cursor:pointer;transition:.15s;border-left:${r.source==='cs_reuniao'?'3px solid var(--brand)':'3px solid transparent'}" onclick="openClientDetail('${r.client.id}')" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='${r.source==='cs_reuniao'?'rgba(1,97,255,.06)':'var(--surface-2)'}'">
+              <div style="width:32px;height:32px;border-radius:8px;background:${r.source==='cs_reuniao'?'var(--brand)':'var(--surface-3)'};display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${r.source==='cs_reuniao'?'📊':'📅'}</div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:600;color:var(--text)">${r.client.company_name}</div>
                 <div style="font-size:11px;color:var(--text-3)">${r.label}${r.time?' · '+r.time:''}</div>
+                ${r.obs?`<div style="font-size:10px;color:var(--text-3);margin-top:1px">${r.obs}</div>`:''}
               </div>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>`).join('')}
@@ -7883,6 +8002,12 @@ function renderCs(){
   const hdr=document.getElementById('cs-header-actions');
   if(!body)return;
 
+  // Inicializa dados de CS
+  if(!window.csReunioes)window.csReunioes=S.load('cs_reunioes',[]);
+  if(!window.csRotinaSemanal)window.csRotinaSemanal=S.load('cs_rotina_semanal',{});
+  if(!window.csPlaybookReuniaoUrl)window.csPlaybookReuniaoUrl=S.load('cs_playbook_reuniao_url','');
+  if(!window.csPlaybookRotinaUrl)window.csPlaybookRotinaUrl=S.load('cs_playbook_rotina_url','');
+
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const isCs=currentSystemUser&&currentSystemUser.level==='cs';
   const ativos=clients.filter(c=>c.status==='ativo'&&(isCs?c.cs_id===currentSystemUser.id:true));
@@ -7933,7 +8058,7 @@ function renderCs(){
       <button class="client-tab" onclick="csSetTab('renovacoes',this)">🔄 Renovações</button>
       <button class="client-tab" onclick="csSetTab('tarefas',this)">✅ Tarefas</button>
       <button class="client-tab" onclick="csSetTab('oportunidades',this)">💡 Oportunidades</button>
-      <button class="client-tab" onclick="csSetTab('reunioes',this)">📅 Reuniões</button>
+      <button class="client-tab" onclick="csSetTab('reunioes',this)">📅 Reuniões de Resultados</button>
       <button class="client-tab" onclick="csSetTab('rotina',this)">📆 Rotina Semanal</button>
       <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">🔔 Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
     </div>
@@ -9066,8 +9191,8 @@ function renderCsReunioes(ativos,hoje){
   return`
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
     <div>
-      <div style="font-size:15px;font-weight:700;color:var(--text)">Reuniões com clientes</div>
-      <div style="font-size:12px;color:var(--text-3);margin-top:2px">Agende, registre e acompanhe as reuniões de resultados</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)">Reuniões de Apresentação de Resultados</div>
+      <div style="font-size:12px;color:var(--text-3);margin-top:2px">Agende, registre e acompanhe as reuniões mensais com seus clientes</div>
     </div>
     <button class="btn btn-primary btn-sm" onclick="abrirModalReuniao()">+ Nova reunião</button>
   </div>
@@ -9203,7 +9328,8 @@ function abrirModalReuniao(id){
   document.getElementById('reun-video').value=r?r.videoUrl||'':'';
   document.getElementById('reun-id').value=r?r.id:'';
   document.getElementById('reun-del-btn').style.display=r?'inline-flex':'none';
-  openModal('reuniao-modal');
+  document.getElementById('reun-modal-title').textContent=r?'Editar Reunião de Apresentação de Resultados':'Nova Reunião de Apresentação de Resultados';
+  openModal('cs-reuniao-modal');
 }
 
 function salvarReuniao(){
@@ -9217,9 +9343,11 @@ function salvarReuniao(){
   if(id){const idx=window.csReunioes.findIndex(x=>x.id===id);if(idx>=0)window.csReunioes[idx]=obj;else window.csReunioes.push(obj);}
   else{window.csReunioes.push(obj);}
   S.save('cs_reunioes',window.csReunioes);
-  closeModal('reuniao-modal');
-  renderCsPage();
-  showToast('Reunião salva ✓');
+  closeModal('cs-reuniao-modal');
+  renderCs();
+  renderDashboardCsPanel();
+  renderReunioesDashboardGestor();
+  showToast('Reunião de resultados salva ✓');
 }
 
 function excluirReuniao(){
@@ -9227,7 +9355,7 @@ function excluirReuniao(){
   deleteCallback=()=>{
     window.csReunioes=(window.csReunioes||[]).filter(x=>x.id!==id);
     S.save('cs_reunioes',window.csReunioes);
-    closeModal('confirm-modal');closeModal('reuniao-modal');renderCsPage();showToast('Reunião removida');
+    closeModal('confirm-modal');closeModal('cs-reuniao-modal');renderCs();renderDashboardCsPanel();renderReunioesDashboardGestor();showToast('Reunião removida');
   };
   document.getElementById('confirm-text').textContent='Excluir esta reunião?';
   openModal('confirm-modal');
@@ -9239,7 +9367,7 @@ function salvarPlaybookReuniao(input){
   const url=URL.createObjectURL(f);
   window.csPlaybookReuniaoUrl=url;
   S.save('cs_playbook_reuniao_url',url);
-  renderCsPage();showToast('Playbook salvo');
+  renderCs();showToast('Playbook salvo');
 }
 
 function uploadPlaybookRotina(){document.getElementById('pb-rotina-file').click();}
@@ -9248,7 +9376,7 @@ function salvarPlaybookRotina(input){
   const url=URL.createObjectURL(f);
   window.csPlaybookRotinaUrl=url;
   S.save('cs_playbook_rotina_url',url);
-  renderCsPage();showToast('Playbook salvo');
+  renderCs();showToast('Playbook salvo');
 }
 
 function adicionarRotinaItem(key){
@@ -9258,14 +9386,14 @@ function adicionarRotinaItem(key){
   if(!window.csRotinaSemanal[key])window.csRotinaSemanal[key]=[];
   window.csRotinaSemanal[key].push(txt.trim());
   S.save('cs_rotina_semanal',window.csRotinaSemanal);
-  renderCsPage();
+  renderCs();
 }
 
 function removerRotinaItem(key,idx){
   if(!window.csRotinaSemanal||!window.csRotinaSemanal[key])return;
   window.csRotinaSemanal[key].splice(idx,1);
   S.save('cs_rotina_semanal',window.csRotinaSemanal);
-  renderCsPage();
+  renderCs();
 }
 
 // ══════════════════════════════════════════════════════
