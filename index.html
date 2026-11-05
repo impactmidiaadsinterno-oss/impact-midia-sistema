@@ -7725,25 +7725,28 @@ function salvarTrilhaMesInline(idx){
 // ══════════════════════════════════════════════════════
 function renderFarolAdmin(){
   const hoje=new Date();hoje.setHours(0,0,0,0);
+  const hojeStr=hoje.toISOString().slice(0,10);
   // Somente clientes com CS responsável atribuída
-  const csIds=new Set(systemUsers.filter(u=>u.level==='cs').map(u=>u.id));
+  const csList=systemUsers.filter(u=>u.level==='cs');
+  const csIds=new Set(csList.map(u=>u.id));
   const ativos=clients.filter(c=>c.status==='ativo'&&csIds.has(c.cs_id));
+  const csReunioes=S.load('cs_reunioes',[]);
 
-  // KPIs globais (apenas clientes com CS)
+  // KPIs globais
   const saudavel=ativos.filter(c=>c.churn_risk==='baixo').length;
   const atencao=ativos.filter(c=>c.churn_risk==='medio').length;
   const risco=ativos.filter(c=>c.churn_risk==='alto').length;
   const semFarol=ativos.filter(c=>!c.churn_risk).length;
+  const npsArr=ativos.map(c=>Number((c.cd_cs||{}).nps_atual)).filter(n=>!isNaN(n)&&n!=null);
+  const npsMedio=npsArr.length?Math.round(npsArr.reduce((a,b)=>a+b,0)/npsArr.length*10)/10:null;
   document.getElementById('farol-admin-kpis').innerHTML=[
     {l:'🟢 Saudáveis',v:saudavel,s:'Farol verde'},
     {l:'🟡 Atenção',v:atencao,s:'Farol amarelo'},
     {l:'🔴 Em risco',v:risco,s:'Farol vermelho'},
     {l:'⬜ Sem farol',v:semFarol,s:'Não classificado'},
     {l:'👥 Total ativos',v:ativos.length,s:'Com CS responsável'},
+    ...(npsMedio!==null?[{l:'⭐ NPS médio',v:npsMedio,s:'Média da agência'}]:[]),
   ].map(m=>`<div class="mc"><div class="mc-label">${m.l}</div><div class="mc-value" style="font-size:20px">${m.v}</div><div class="mc-sub">${m.s}</div></div>`).join('');
-
-  // Lista de CS
-  const csList=systemUsers.filter(u=>u.level==='cs');
 
   // Tabs de CS
   const tabsEl=document.getElementById('farol-cs-tabs');
@@ -7768,10 +7771,10 @@ function renderFarolAdmin(){
   const displayCs=window._farolCsTab?csList.filter(u=>u.id===window._farolCsTab):csList;
   const farolColor={baixo:'#16a34a',medio:'#d97706',alto:'#dc2626'};
   const farolIcon={baixo:'🟢',medio:'🟡',alto:'🔴'};
+  const fmtData=s=>{if(!s)return'—';const[y,m,d]=s.split('-');return`${d}/${m}`;};
 
   body.innerHTML=displayCs.map(cs=>{
-    const carteira=(ativos.filter(c=>c.cs_id===cs.id));
-    const semCS=!window._farolCsTab&&csList.length===1;
+    const carteira=ativos.filter(c=>c.cs_id===cs.id).sort((a,b)=>a.company_name.localeCompare(b.company_name,'pt-BR'));
     return`<div class="card" style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div>
@@ -7784,23 +7787,39 @@ function renderFarolAdmin(){
         ? `<div style="text-align:center;padding:24px;color:var(--text-3);font-size:13px">Nenhum cliente atribuído — clique em "Editar carteira" para atribuir.</div>`
         : `<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr>
-            ${['Cliente','Farol','Obs / Nota CS','MRR','Contrato'].map(h=>`<th style="text-align:left;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">${h}</th>`).join('')}
+            ${['Cliente','Farol','NPS','Últ. Feedback','Próx. Reunião','Vídeo Reunião','MRR'].map(h=>`<th style="text-align:left;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">${h}</th>`).join('')}
           </tr></thead>
           <tbody>
             ${carteira.map(c=>{
               const fr=c.churn_risk;
-              return`<tr>
+              const cs2=c.cd_cs||{};
+              const nps=cs2.nps_atual!=null?Number(cs2.nps_atual):null;
+              const npsColor=nps==null?'var(--text-3)':nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626';
+              // Último feedback semanal
+              const ultFeed=cs2.ultimo_feedback_semanal;
+              const diasFeed=ultFeed?Math.round((hoje-new Date(ultFeed+'T00:00:00'))/(864e5)):null;
+              const feedColor=diasFeed==null?'var(--text-3)':diasFeed<=7?'#16a34a':diasFeed<=14?'#d97706':'#dc2626';
+              const feedTxt=ultFeed?`${fmtData(ultFeed)} <span style="color:${feedColor}">(${diasFeed}d atrás)</span>`:'<span style="color:#dc2626">—</span>';
+              // Próxima reunião de resultados agendada
+              const proxReun=csReunioes.filter(r=>r.clientId===c.id&&r.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data))[0]||null;
+              const proxReunTxt=proxReun?`${fmtData(proxReun.data)}${proxReun.horario?' '+proxReun.horario:''}`:'<span style="color:var(--text-3)">—</span>';
+              // Último vídeo de reunião
+              const ultimaReunComVideo=csReunioes.filter(r=>r.clientId===c.id&&r.videoUrl).sort((a,b)=>b.data.localeCompare(a.data))[0]||null;
+              const videoTxt=ultimaReunComVideo
+                ?`<a href="${ultimaReunComVideo.videoUrl}" target="_blank" style="color:var(--brand);text-decoration:none;font-weight:600" title="${fmtData(ultimaReunComVideo.data)}">▶ Ver vídeo</a>`
+                :'<span style="color:var(--text-3)">—</span>';
+              // Cor farol
+              const farolBadge=fr
+                ?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:${farolColor[fr]||'var(--text-3)'};background:${fr==='baixo'?'rgba(22,163,74,.12)':fr==='medio'?'rgba(217,119,6,.12)':'rgba(220,38,38,.12)'};border-radius:6px;padding:3px 8px">${farolIcon[fr]} ${fr==='baixo'?'Saudável':fr==='medio'?'Atenção':'Em risco'}</span>`
+                :`<span style="font-size:11px;color:var(--text-3)">⬜ Sem farol</span>`;
+              return`<tr style="transition:background .15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
                 <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--text)">${c.company_name}</td>
-                <td style="padding:8px 12px;border-bottom:1px solid var(--border)">
-                  <div style="display:flex;gap:4px;align-items:center">
-                    ${['baixo','medio','alto'].map(n=>`<button onclick="adminSetClientFarol('${c.id}','${n}')" style="width:24px;height:24px;border-radius:6px;border:1.5px solid ${fr===n?farolColor[n]:'var(--border)'};background:${fr===n?`rgba(${n==='baixo'?'22,163,74':n==='medio'?'217,119,6':'220,38,38'},.15)`:'transparent'};cursor:pointer;font-size:12px">${farolIcon[n]}</button>`).join('')}
-                  </div>
-                </td>
-                <td style="padding:8px 12px;border-bottom:1px solid var(--border);max-width:200px">
-                  <input type="text" value="${(c.cs_obs||'').replace(/"/g,'&quot;')}" placeholder="Anotação CS..." style="width:100%;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;background:var(--surface);color:var(--text)" onblur="adminSaveClientCsObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
-                </td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border)">${farolBadge}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;color:${npsColor}">${nps!=null?nps:'<span style="color:var(--text-3)">—</span>'}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px">${feedTxt}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text)">${proxReunTxt}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid var(--border)">${videoTxt}</td>
                 <td style="padding:8px 12px;border-bottom:1px solid var(--border);color:var(--brand);font-weight:700">${fmt(c.monthly_value||0)}</td>
-                <td style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-3)">${c.contract_end?c.contract_end.split('-').reverse().join('/'):'—'}</td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -7808,17 +7827,6 @@ function renderFarolAdmin(){
       }
     </div>`;
   }).join('');
-
-  // Clientes sem CS atribuída
-  const semCsClients=ativos.filter(c=>!c.cs_id||!csList.find(u=>u.id===c.cs_id));
-  if(semCsClients.length&&!window._farolCsTab){
-    body.innerHTML+=`<div class="card" style="margin-bottom:16px;border:1px dashed var(--border)">
-      <div style="font-size:13px;font-weight:700;color:var(--text-3);margin-bottom:8px">⚠️ Clientes sem CS atribuída (${semCsClients.length})</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${semCsClients.map(c=>`<span style="font-size:12px;padding:4px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-2)">${c.company_name}</span>`).join('')}
-      </div>
-    </div>`;
-  }
 }
 
 // ── Página Farol da CS (visão da própria CS) ──
