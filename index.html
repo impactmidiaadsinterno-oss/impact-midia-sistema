@@ -3325,25 +3325,27 @@ function renderDashboardCsPanel(){
   if(!isAdm&&!isGestor){el.innerHTML='';return;}
 
   const hoje=new Date();
-  const ativos=clients.filter(c=>c.status==='ativo');
+  // Apenas clientes com CS responsável atribuída
+  const csIds=new Set(systemUsers.filter(u=>u.level==='cs').map(u=>u.id));
+  const ativos=clients.filter(c=>c.status==='ativo'&&csIds.has(c.cs_id));
   let saudaveis=0,atencao=0,risco=0,ltvTotal=0,ltvRisco=0,npsArr=[];
 
   ativos.forEach(c=>{
-    const sc=calcCsScore(c,hoje);
     const ticket=Number(c.ticket_value||c.monthly_value||0);
     const meses=Number(c.contract_months||0);
     const ltv=ticket&&meses?ticket*meses:0;
     ltvTotal+=ltv;
-    if(sc>=70){saudaveis++;}
-    else if(sc>=40){atencao++;}
-    else{risco++;ltvRisco+=ltv;}
+    // Usa churn_risk manual como fonte de verdade (igual ao farol da CS)
+    if(c.churn_risk==='baixo'){saudaveis++;}
+    else if(c.churn_risk==='medio'){atencao++;}
+    else if(c.churn_risk==='alto'){risco++;ltvRisco+=ltv;}
     const nps=(c.cd_cs||{}).nps_atual;
     if(nps!=null)npsArr.push(Number(nps));
   });
   const npsMedio=npsArr.length?Math.round(npsArr.reduce((a,b)=>a+b,0)/npsArr.length):null;
 
-  // Clientes em risco
-  const riscoClients=ativos.filter(c=>calcCsScore(c,hoje)<40).sort((a,b)=>calcCsScore(a,hoje)-calcCsScore(b,hoje));
+  // Clientes em risco (churn_risk manual = 'alto')
+  const riscoClients=ativos.filter(c=>c.churn_risk==='alto').sort((a,b)=>calcCsScore(a,hoje)-calcCsScore(b,hoje));
 
   el.innerHTML=`
 <div class="card cp">
