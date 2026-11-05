@@ -2861,7 +2861,12 @@ function _applyDataMap(map){
   if(map.expenses)expenses=map.expenses;
   if(map.goals)goals=map.goals;
   if(map.meetings)meetings=map.meetings;
-  if(map.monthlyHistory)monthlyHistory=map.monthlyHistory;
+  if(map.monthlyHistory){
+    // De-duplicate on load: keep last entry per month
+    const _mhMap={};
+    map.monthlyHistory.forEach(h=>{if(h.month)_mhMap[h.month]=h;});
+    monthlyHistory=Object.values(_mhMap).sort((a,b)=>a.month.localeCompare(b.month));
+  }
   if(map.settings)settings=map.settings;
   if(map.movements)movements=map.movements;
   if(map.systemUsers&&map.systemUsers.length)systemUsers=map.systemUsers;
@@ -5867,10 +5872,13 @@ function addHistoricoRow(){
   // Suggest next month after the last entry
   let suggestMonth='';
   if(histTemp.length>0){
-    const last=histTemp[histTemp.length-1].month;
-    if(last&&last.match(/^\d{4}-\d{2}$/)){
+    // Find the latest month among all entries to suggest the next one
+    const months=histTemp.map(h=>h.month).filter(m=>m&&m.match(/^\d{4}-\d{2}$/)).sort();
+    const last=months[months.length-1];
+    if(last){
       const[y,m]=last.split('-').map(Number);
-      const nd=new Date(y,m,1); // m is already 0-based after split
+      // new Date(y, m, 1): m is 1-based from split, so passing m directly gives next month in JS 0-based
+      const nd=new Date(y,m,1);
       suggestMonth=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}`;
     }
   }
@@ -5883,18 +5891,17 @@ function addHistoricoRow(){
 function saveHistorico(){
   // Read all current DOM values into histTemp
   _syncHistTempFromDOM();
-  // Validate: filter rows with valid month format, sort
-  const valid=histTemp.filter(h=>h.month&&h.month.match(/^\d{4}-\d{2}$/));
+  // Validate format
   const invalid=histTemp.filter(h=>h.month&&!h.month.match(/^\d{4}-\d{2}$/));
   if(invalid.length>0){
     showToast('Corrija o formato do mês: use AAAA-MM (ex: 2025-01)');
     return;
   }
-  // Check duplicates
-  const months=valid.map(h=>h.month);
-  const unique=new Set(months);
-  if(unique.size!==months.length){showToast('Existem meses duplicados — corrija antes de salvar');return}
-  monthlyHistory=valid.sort((a,b)=>a.month.localeCompare(b.month));
+  const valid=histTemp.filter(h=>h.month&&h.month.match(/^\d{4}-\d{2}$/));
+  // De-duplicate: keep the LAST entry for each month (most recent edit wins)
+  const deduped={};
+  valid.forEach(h=>{deduped[h.month]=h;});
+  monthlyHistory=Object.values(deduped).sort((a,b)=>a.month.localeCompare(b.month));
   saveAll();
   closeModal('historico-modal');
   if(document.getElementById('page-crescimento').classList.contains('active'))renderCrescimento();
