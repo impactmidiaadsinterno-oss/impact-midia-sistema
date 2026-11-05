@@ -2845,7 +2845,18 @@ function _getDataMap(){
 }
 function _applyDataMap(map){
   if(map.clients)clients=map.clients;
-  if(map.revenues)revenues=map.revenues;
+  if(map.revenues){
+    // De-duplicate mensalidades: keep last entry per client_id+reference_month
+    const seen={};
+    revenues=map.revenues.filter(r=>{
+      if(r.tipo==='mensalidade'||!r.tipo){
+        const k=r.client_id+'|'+r.reference_month;
+        if(seen[k]){return false;}
+        seen[k]=true;
+      }
+      return true;
+    });
+  }
   if(map.vendasPontuais)vendasPontuais=map.vendasPontuais;
   if(map.expenses)expenses=map.expenses;
   if(map.goals)goals=map.goals;
@@ -5254,7 +5265,28 @@ function saveReceita(){
     payment_method:document.getElementById('rf-pay').value,
     notes:document.getElementById('rf-notes').value,
   };
-  if(editRevId){const i=revenues.findIndex(r=>r.id===editRevId);revenues[i]=data}else revenues.push(data);
+  if(editRevId){
+    const i=revenues.findIndex(r=>r.id===editRevId);
+    if(i>=0) revenues[i]=data;
+    else revenues.push(data);
+  } else {
+    // Prevent duplicate: if a mensalidade already exists for this client+month, UPDATE it instead of adding a new one
+    const tipo=data.tipo||'mensalidade';
+    if(tipo==='mensalidade'){
+      const existIdx=revenues.findIndex(r=>r.client_id===data.client_id&&r.reference_month===data.reference_month&&(r.tipo==='mensalidade'||!r.tipo));
+      if(existIdx>=0){
+        // Keep the existing id, just update fields
+        revenues[existIdx]={...revenues[existIdx],...data,id:revenues[existIdx].id};
+        showToast('Receita do mês atualizada (já existia um lançamento para este cliente neste mês)');
+        saveAll();closeModal('receita-modal');
+        if(document.getElementById('page-financeiro').classList.contains('active'))renderFinanceiro();
+        if(document.getElementById('page-cobrancas').classList.contains('active'))renderCobrancas();
+        if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
+        return;
+      }
+    }
+    revenues.push(data);
+  }
   // Venda pontual: accumulate in client LTV
   if(tipo==='venda_pontual'&&cl&&!editRevId){
     if(!cl.ltv_extra)cl.ltv_extra=0;
