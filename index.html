@@ -8301,6 +8301,7 @@ function renderCsFarol(ativos,hoje){
         <div style="font-size:26px;font-weight:800;color:#dc2626">${risco}</div>
         <div style="font-size:11px;font-weight:600;color:#dc2626;margin-top:2px">🔴 Em risco</div>
       </div>
+      ${!(currentSystemUser&&currentSystemUser.level==='cs')?`
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center">
         <div style="font-size:18px;font-weight:800;color:var(--text)">${fmtR(ltvTotal)}</div>
         <div style="font-size:11px;color:var(--text-3);margin-top:2px">💰 LTV total carteira</div>
@@ -8308,7 +8309,7 @@ function renderCsFarol(ativos,hoje){
       <div style="background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:12px;padding:14px 16px;text-align:center">
         <div style="font-size:18px;font-weight:800;color:#dc2626">${fmtR(ltvRisco)}</div>
         <div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ LTV em risco</div>
-      </div>
+      </div>`:''}
       ${npsMedia!==null?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center">
         <div style="font-size:26px;font-weight:800;color:${npsMedia>=9?'#16a34a':npsMedia>=7?'#d97706':'#dc2626'}">${npsMedia}</div>
         <div style="font-size:11px;color:var(--text-3);margin-top:2px">⭐ NPS médio</div>
@@ -8335,8 +8336,8 @@ function renderCsFarol(ativos,hoje){
               <div style="height:100%;width:${pct}%;background:${cor};border-radius:3px"></div>
             </div>
           </div>
-          <!-- LTV -->
-          ${ltv?`<div style="flex:0 0 auto;text-align:right">
+          <!-- LTV (oculto para CS) -->
+          ${ltv&&!(currentSystemUser&&currentSystemUser.level==='cs')?`<div style="flex:0 0 auto;text-align:right">
             <div style="font-size:12px;font-weight:700;color:var(--text)">${fmtR(ltv)}</div>
             <div style="font-size:10px;color:var(--text-3)">LTV contrato</div>
           </div>`:''}
@@ -9148,10 +9149,12 @@ function deleteCsOportunidade(id){
 // ══════════════════════════════════════════════════════
 function _calcCsAlertas(ativos,hoje){
   const alertas=[];
+  // Alertas de feedback semanal: só aparecem na segunda-feira (dia 1)
+  const ehSegunda=hoje.getDay()===1;
   ativos.forEach(c=>{
     const cs=c.cd_cs||{};
-    // Sem feedback há mais de 9 dias
-    if(!cs.ultimo_feedback_semanal||Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9){
+    // Sem feedback há mais de 9 dias — só notifica na segunda-feira
+    if(ehSegunda&&(!cs.ultimo_feedback_semanal||Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5))>9)){
       alertas.push({key:`feed-${c.id}`,nivel:'media',titulo:'Sem feedback semanal',desc:c.company_name,clientId:c.id,icone:'💬'});
     }
     // Em risco
@@ -9423,7 +9426,7 @@ function renderCsAlertas(ativos,hoje){
             <div style="font-size:12px;font-weight:700;color:${corNivel[a.nivel]}">${a.titulo}</div>
             <div style="font-size:11px;color:var(--text-2);margin-top:2px">${a.desc}</div>
           </div>
-          ${a.clientId?`<button class="btn btn-secondary btn-sm" onclick="openClientDetail('${a.clientId}')">Ver</button>`:''}
+          ${a.clientId?`<button class="btn btn-secondary btn-sm" onclick="openCsClientModal('${a.clientId}')">Ver</button>`:''}
           <button onclick="resolverAlerta('${a.key}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;padding:4px;border-radius:5px" title="Resolver" onmouseover="this.style.color='#16a34a'" onmouseout="this.style.color='var(--text-3)'">✓</button>
         </div>`).join('')}
     </div>`}
