@@ -9584,7 +9584,10 @@ Responda SOMENTE com um JSON válido no seguinte formato (sem markdown, sem expl
     csIaMostrarPreview(resultado,texto);
   }catch(e){
     console.error('IA erro:',e);
-    showToast('Erro ao contatar a IA. Verifique a conexão.');
+    const msg=e?.message||'';
+    if(msg.includes('400')||msg.includes('API_KEY')||msg.includes('invalid'))showToast('Chave da IA inválida. Reconfigure na aba IA.');
+    else if(msg.includes('403'))showToast('Chave sem permissão. Verifique no Google AI Studio.');
+    else showToast('Erro ao contatar a IA: '+msg.substring(0,80));
   }finally{
     btn.disabled=false;
     btnTxt.textContent='✨ Processar';
