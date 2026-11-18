@@ -8113,8 +8113,9 @@ function _renderCsKpis(ativos,hoje){
     return diff>=0&&diff<=40;
   });
   const renovacaoPendente=ativos.filter(c=>{
-    if(!c.cd_cs?.renovacao_etapa)return false;
-    return !['r4','r5'].includes(c.cd_cs.renovacao_etapa);
+    if(c.cs_fase!=='f9')return false;
+    const et=c.cd_cs?.renovacao_etapa_v2||'rv0';
+    return !['rv2','rv3'].includes(et); // Pendente = não resolvido ainda
   });
   // LTV médio
   const comLtv=ativos.filter(c=>Number(c.ticket_value||c.contract_value||0)>0&&Number(c.contract_months||0)>0);
@@ -8315,6 +8316,55 @@ function renderCsFarol(ativos,hoje){
         <div style="font-size:11px;color:var(--text-3);margin-top:2px">⭐ NPS médio</div>
       </div>`:''}
     </div>
+
+    <!-- Guia de classificação (accordion) -->
+    <details style="margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <summary style="padding:12px 16px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text-3);list-style:none;display:flex;align-items:center;gap:8px;user-select:none">
+        <span>📋</span> <span>Como classificar o farol?</span>
+        <span style="margin-left:auto;font-size:10px;opacity:.6">clique para ver</span>
+      </summary>
+      <div style="padding:0 16px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+        <!-- Saudável -->
+        <div style="background:rgba(22,163,74,.06);border:1.5px solid rgba(22,163,74,.25);border-radius:10px;padding:14px">
+          <div style="font-size:13px;font-weight:800;color:#16a34a;margin-bottom:8px">🟢 Saudável</div>
+          <div style="font-size:11px;color:#166534;font-style:italic;margin-bottom:8px">Cliente engajado e satisfeito</div>
+          <ul style="margin:0;padding-left:14px;display:flex;flex-direction:column;gap:4px">
+            <li style="font-size:11px;color:var(--text-2)">Responde normalmente às mensagens da CS</li>
+            <li style="font-size:11px;color:var(--text-2)">Participa das reuniões e demonstra interesse</li>
+            <li style="font-size:11px;color:var(--text-2)">Comunicação cordial e colaborativa</li>
+            <li style="font-size:11px;color:var(--text-2)">Demonstra confiança na agência</li>
+            <li style="font-size:11px;color:var(--text-2)">Compartilha feedbacks espontaneamente</li>
+            <li style="font-size:11px;color:var(--text-2)">Sem sinais relevantes de insatisfação</li>
+          </ul>
+        </div>
+        <!-- Atenção -->
+        <div style="background:rgba(217,119,6,.06);border:1.5px solid rgba(217,119,6,.25);border-radius:10px;padding:14px">
+          <div style="font-size:13px;font-weight:800;color:#d97706;margin-bottom:8px">🟡 Atenção</div>
+          <div style="font-size:11px;color:#92400e;font-style:italic;margin-bottom:8px">Mudança no comportamento</div>
+          <ul style="margin:0;padding-left:14px;display:flex;flex-direction:column;gap:4px">
+            <li style="font-size:11px;color:var(--text-2)">Começou a ficar distante ou demorar para responder</li>
+            <li style="font-size:11px;color:var(--text-2)">Deixa de interagir com feedbacks semanais repetidamente</li>
+            <li style="font-size:11px;color:var(--text-2)">Demonstra desânimo ou insatisfação pontual</li>
+            <li style="font-size:11px;color:var(--text-2)">Questiona frequentemente se vale a pena continuar</li>
+            <li style="font-size:11px;color:var(--text-2)">Cancela reuniões sem reagendar</li>
+            <li style="font-size:11px;color:var(--text-2)">Tom nas conversas mudou visivelmente</li>
+          </ul>
+        </div>
+        <!-- Em risco -->
+        <div style="background:rgba(220,38,38,.06);border:1.5px solid rgba(220,38,38,.25);border-radius:10px;padding:14px">
+          <div style="font-size:13px;font-weight:800;color:#dc2626;margin-bottom:8px">🔴 Em risco</div>
+          <div style="font-size:11px;color:#991b1b;font-style:italic;margin-bottom:8px">Sinais de possível cancelamento</div>
+          <ul style="margin:0;padding-left:14px;display:flex;flex-direction:column;gap:4px">
+            <li style="font-size:11px;color:var(--text-2)">Mencionou cancelar ou não renovar o contrato</li>
+            <li style="font-size:11px;color:var(--text-2)">Perda clara de confiança na agência</li>
+            <li style="font-size:11px;color:var(--text-2)">Afirmou estar procurando outra agência</li>
+            <li style="font-size:11px;color:var(--text-2)">Insatisfação recorrente e intensa</li>
+            <li style="font-size:11px;color:var(--text-2)">Evita contato após várias tentativas + outros sinais negativos</li>
+            <li style="font-size:11px;color:var(--text-2)">Disse que não pretende continuar a parceria</li>
+          </ul>
+        </div>
+      </div>
+    </details>
 
     <!-- Cards individuais -->
     <div style="display:flex;flex-direction:column;gap:8px">
@@ -8560,43 +8610,64 @@ function renderCsLog(ativos){
 }
 
 function renderCsRenovacoes(ativos,hoje){
-  const lista=ativos.filter(c=>c.start_date&&c.contract_months).map(c=>{
-    const exp=new Date(c.start_date);exp.setMonth(exp.getMonth()+Number(c.contract_months));
-    const diff=Math.round((exp-hoje)/(1000*60*60*24));
-    return{c,exp,diff};
-  }).sort((a,b)=>a.diff-b.diff).slice(0,20);
+  // Só clientes na fase "Processo de renovação" (f9)
+  const emRenovacao=ativos.filter(c=>c.cs_fase==='f9');
 
-  return`<div style="display:flex;flex-direction:column;gap:8px">
-    <div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Acompanhe os contratos prestes a vencer para atuar preventivamente e identificar oportunidades de upsell.</div>
-    ${lista.map(({c,exp,diff})=>{
-      const cor=diff<0?'#dc2626':diff<=30?'#d97706':diff<=60?'#d97706':'#16a34a';
-      const label=diff<0?`Venceu há ${Math.abs(diff)}d`:diff===0?'Vence hoje':`${diff}d restantes`;
-      const expStr=exp.toLocaleDateString('pt-BR');
+  if(emRenovacao.length===0){
+    return`<div style="text-align:center;padding:60px 24px;color:var(--text-3)">
+      <div style="font-size:40px;margin-bottom:12px">🔄</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Nenhum cliente em processo de renovação</div>
+      <div style="font-size:12px">Na aba <strong>📌 Fases</strong>, mova um cliente para <strong>Processo de renovação</strong> para ele aparecer aqui.</div>
+    </div>`;
+  }
+
+  // Etapas simplificadas
+  const ETAPAS=[
+    {id:'rv0',label:'Primeiro contato',cor:'#3b82f6',icone:'📞'},
+    {id:'rv1',label:'Negociação',cor:'#d97706',icone:'🤝'},
+    {id:'rv2',label:'Renovou',cor:'#16a34a',icone:'✅'},
+    {id:'rv3',label:'Não renovou',cor:'#dc2626',icone:'❌'},
+  ];
+
+  return`<div style="display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:4px">Clientes movidos para <strong>Processo de renovação</strong> nas Fases. Atualize a etapa conforme o andamento.</div>
+    ${emRenovacao.map(c=>{
       const cs=c.cd_cs||{};
-      return`<div style="background:var(--surface);border:1px solid ${cor}30;border-left:3px solid ${cor};border-radius:10px;padding:14px 18px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:13px;font-weight:700;color:var(--text)">${c.company_name}</div>
-            <div style="font-size:11px;color:var(--text-3)">${c.niche||'—'} · ${c.manager||'—'}</div>
+      const etapaAtual=cs.renovacao_etapa_v2||'rv0';
+      const etapa=ETAPAS.find(e=>e.id===etapaAtual)||ETAPAS[0];
+      // Vencimento do contrato
+      let vencInfo='';
+      if(c.start_date&&c.contract_months){
+        const exp=new Date(c.start_date+'T00:00:00');exp.setMonth(exp.getMonth()+Number(c.contract_months));
+        const diff=Math.round((exp-hoje)/(1000*60*60*24));
+        const corV=diff<0?'#dc2626':diff<=30?'#d97706':'#6b7280';
+        const labelV=diff<0?`Venceu há ${Math.abs(diff)}d`:diff===0?'Vence hoje':`Vence em ${diff}d (${exp.toLocaleDateString('pt-BR')})`;
+        vencInfo=`<span style="font-size:11px;font-weight:600;color:${corV}">⏳ ${labelV}</span>`;
+      }
+      const renovou=etapaAtual==='rv2';
+      const naoRenovou=etapaAtual==='rv3';
+      const cardBorder=renovou?'#16a34a':naoRenovou?'#dc2626':etapa.cor;
+      return`<div style="background:var(--surface);border:1.5px solid ${cardBorder}30;border-left:4px solid ${cardBorder};border-radius:12px;padding:14px 18px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <div style="flex:1;min-width:140px">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">${c.company_name}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">${c.niche||'—'} · ${c.manager||'—'}</div>
           </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:13px;font-weight:800;color:${cor}">${label}</div>
-            <div style="font-size:11px;color:var(--text-3)">Vence em ${expStr}</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+            <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${etapa.cor}18;color:${etapa.cor}">${etapa.icone} ${etapa.label}</span>
+            ${vencInfo}
           </div>
         </div>
-        <!-- Pipeline de renovação 6 etapas -->
-        <div style="margin-top:10px">
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
-            ${CS_RENOVACAO_ETAPAS.map(et=>{
-              const ativa=(cs.renovacao_etapa||'r0')===et.id;
-              const corEt={r0:'#6b7280',r1:'#3b82f6',r2:'#8b5cf6',r3:'#d97706',r4:'#16a34a',r5:'#dc2626'}[et.id]||'#6b7280';
-              return`<button onclick="saveCsRenovacaoEtapa('${c.id}','${et.id}')"
-                style="font-size:10px;font-weight:${ativa?700:500};padding:3px 9px;border-radius:5px;border:1.5px solid ${ativa?corEt:corEt+'50'};background:${ativa?corEt+'18':'transparent'};color:${ativa?corEt:'var(--text-3)'};cursor:pointer;transition:.15s">${et.label}</button>`;
-            }).join('')}
-          </div>
-          <input class="inp" value="${cs.renovacao_obs||''}" placeholder="Observação de renovação..." style="width:100%;box-sizing:border-box;font-size:12px"
-            onblur="saveCsRenovacaoObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
+        <!-- Etapas -->
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+          ${ETAPAS.map(et=>{
+            const ativa=etapaAtual===et.id;
+            return`<button onclick="salvarRenovacaoEtapaV2('${c.id}','${et.id}')"
+              style="font-size:11px;font-weight:${ativa?700:500};padding:5px 12px;border-radius:7px;border:1.5px solid ${ativa?et.cor:et.cor+'50'};background:${ativa?et.cor:'transparent'};color:${ativa?'#fff':et.cor};cursor:pointer;transition:.15s">${et.icone} ${et.label}</button>`;
+          }).join('')}
         </div>
+        <input class="inp" value="${cs.renovacao_obs||''}" placeholder="Observação sobre a renovação..." style="width:100%;box-sizing:border-box;font-size:12px"
+          onblur="saveCsRenovacaoObs('${c.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()"/>
       </div>`;
     }).join('')}
   </div>`;
@@ -8804,7 +8875,19 @@ function saveCsRenovacaoEtapa(clientId,etapaId){
   if(!c.cd_cs)c.cd_cs={};
   c.cd_cs.renovacao_etapa=etapaId;
   saveAll();showToast('Etapa de renovação atualizada');
-  // Re-render renovações
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(cl=>cl.status==='ativo'&&(isCs?cl.cs_id===currentSystemUser.id:true));
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const el=document.getElementById('cs-tab-renovacoes');
+  if(el)el.innerHTML=renderCsRenovacoes(ativos,hoje);
+}
+function salvarRenovacaoEtapaV2(clientId,etapaId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  c.cd_cs.renovacao_etapa_v2=etapaId;
+  saveAll();
+  const labels={rv0:'Primeiro contato',rv1:'Negociação',rv2:'Renovou ✅',rv3:'Não renovou ❌'};
+  showToast(`${labels[etapaId]||'Etapa'} salva`);
   const isCs=currentSystemUser&&currentSystemUser.level==='cs';
   const ativos=clients.filter(cl=>cl.status==='ativo'&&(isCs?cl.cs_id===currentSystemUser.id:true));
   const hoje=new Date();hoje.setHours(0,0,0,0);
