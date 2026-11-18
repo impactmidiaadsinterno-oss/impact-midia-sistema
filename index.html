@@ -9571,21 +9571,13 @@ Responda SOMENTE com um JSON válido no seguinte formato (sem markdown, sem expl
   try{
     const geminiKey=getGeminiKey();
     if(!geminiKey){showToast('Configure a chave da IA nas configurações da aba IA');btn.disabled=false;btnTxt.textContent='✨ Processar';return;}
-    const modelos=['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-1.5-flash','gemini-pro'];
-    let data=null;
-    for(const modelo of modelos){
-      btnTxt.textContent=`⏳ Tentando ${modelo}...`;
-      const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${geminiKey}`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:1024}})
-      });
-      if(r.ok){data=await r.json();S.save('cs_gemini_modelo',modelo);break;}
-      const eBody=await r.text();
-      if(r.status===404||r.status===400)continue;
-      throw new Error('Gemini: '+eBody);
-    }
-    if(!data)throw new Error('Nenhum modelo disponível para esta chave. Verifique no Google AI Studio.');
+    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-goog-api-key':geminiKey},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:1024}})
+    });
+    if(!resp.ok){const e=await resp.text();throw new Error('Gemini: '+e);}
+    const data=await resp.json();
     const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
     const jsonStr=raw.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
     const resultado=JSON.parse(jsonStr);
