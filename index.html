@@ -8635,12 +8635,22 @@ function openCsClientModal(clientId){
       <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📋 Informações do Cliente</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
         <div><div style="font-size:10px;color:var(--text-3)">Nicho</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.niche||'—'}</div></div>
-        <div><div style="font-size:10px;color:var(--text-3)">Gestora</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.manager||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Gestora responsável</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.manager||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Responsável no cliente</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.contact_name||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Cidade</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.city||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">WhatsApp</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.phone||c.whatsapp||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">E-mail</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.email?`<a href="mailto:${c.email}" style="color:var(--brand)">${c.email}</a>`:'—'}</div></div>
         <div><div style="font-size:10px;color:var(--text-3)">Início do contrato</div><div style="font-size:13px;font-weight:600;color:var(--text)">${startDate}</div></div>
         <div><div style="font-size:10px;color:var(--text-3)">Término do contrato</div><div style="font-size:13px;font-weight:600;color:${endDate==='—'?'var(--text-3)':'var(--text)'}">${endDate}</div></div>
         <div><div style="font-size:10px;color:var(--text-3)">Meses contratados</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.contract_months?c.contract_months+'m':'—'}</div></div>
-        <div><div style="font-size:10px;color:var(--text-3)">WhatsApp</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.phone||c.whatsapp||'—'}</div></div>
+        <div><div style="font-size:10px;color:var(--text-3)">Status</div><div style="font-size:13px;font-weight:600;color:var(--text)">${c.status==='ativo'?'🟢 Ativo':c.status==='pausado'?'🟡 Pausado':'⚫ '+c.status}</div></div>
       </div>
+      ${(c.cd_acesso?.instagram||c.cd_acesso?.site)?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        ${c.cd_acesso?.instagram?`<a href="${c.cd_acesso.instagram.startsWith('http')?c.cd_acesso.instagram:'https://instagram.com/'+c.cd_acesso.instagram}" target="_blank" style="font-size:11px;background:linear-gradient(135deg,#f43f5e,#a855f7);color:#fff;border-radius:6px;padding:4px 10px;text-decoration:none;font-weight:600">📸 Instagram</a>`:''}
+        ${c.cd_acesso?.site?`<a href="${c.cd_acesso.site.startsWith('http')?c.cd_acesso.site:'https://'+c.cd_acesso.site}" target="_blank" style="font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 10px;text-decoration:none;color:var(--text);font-weight:500">🌐 Site</a>`:''}
+      </div>`:''}
+      ${c.notes?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:4px"><div style="font-size:10px;color:var(--text-3);margin-bottom:4px;font-weight:700;text-transform:uppercase">📝 Observações</div><div style="font-size:12px;color:var(--text-2);line-height:1.5">${c.notes}</div></div>`:''}
+
       ${(()=>{const ct=_csContratoInfo(c,new Date(new Date().setHours(0,0,0,0)));if(!ct)return'';return`
       <div style="margin-bottom:10px;padding:10px;background:${ct.cor}10;border:1px solid ${ct.cor}30;border-radius:8px">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
