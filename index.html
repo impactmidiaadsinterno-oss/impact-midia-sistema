@@ -8391,6 +8391,14 @@ function renderCsFarol(ativos,hoje){
             <div style="font-size:12px;font-weight:700;color:var(--text)">${fmtR(ltv)}</div>
             <div style="font-size:10px;color:var(--text-3)">LTV contrato</div>
           </div>`:''}
+          <!-- Tier do cliente -->
+          <div style="display:flex;gap:3px;flex-shrink:0">
+            ${[{id:'bronze',emoji:'🥉',label:'Bronze',cor:'#b45309'},{id:'prata',emoji:'🥈',label:'Prata',cor:'#6b7280'},{id:'ouro',emoji:'🥇',label:'Ouro',cor:'#d97706'}].map(t=>{
+              const ativa=c.tier===t.id;
+              return`<button type="button" title="${t.label}" onclick="csSetTier('${c.id}','${t.id}')"
+                style="height:26px;padding:0 7px;border-radius:6px;border:1.5px solid ${ativa?t.cor:'var(--border)'};background:${ativa?t.cor+'22':'transparent'};cursor:pointer;font-size:12px;font-weight:${ativa?700:400};color:${ativa?t.cor:'var(--text-3)'}">${t.emoji}</button>`;
+            }).join('')}
+          </div>
           <!-- Farol manual -->
           <div style="display:flex;gap:4px;flex-shrink:0">
             <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='baixo'?'#16a34a':'var(--border)'};background:${c.churn_risk==='baixo'?'rgba(22,163,74,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','baixo')" title="Saudável">🟢</button>
@@ -8445,6 +8453,38 @@ function saveCsFarolObs(clientId,val){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
   if(!c.cd_cs)c.cd_cs={};c.cd_cs.plano_acao=val;saveAll();
 }
+function csSetTier(clientId,tierId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  // Toggle: clicar no mesmo remove
+  c.tier=(c.tier===tierId?null:tierId);
+  saveAll();
+  const labels={bronze:'🥉 Bronze',prata:'🥈 Prata',ouro:'🥇 Ouro'};
+  showToast(c.tier?`${labels[c.tier]} definido`:'Classificação removida');
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+  const ativos=clients.filter(cl=>cl.status==='ativo'&&(isCs?cl.cs_id===currentSystemUser.id:true));
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const tabFarol=document.getElementById('cs-tab-farol');
+  if(tabFarol)tabFarol.innerHTML=renderCsFarol(ativos,hoje);
+}
+function csSetTierModal(clientId,tierId,btn){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  c.tier=(c.tier===tierId?null:tierId);
+  saveAll();
+  const labels={bronze:'🥉 Bronze',prata:'🥈 Prata',ouro:'🥇 Ouro'};
+  showToast(c.tier?`${labels[c.tier]} definido`:'Classificação removida');
+  // Atualiza visual dos botões no modal sem fechar
+  const tiers=[{id:'bronze',cor:'#b45309',bg:'rgba(180,83,9,.08)'},{id:'prata',cor:'#6b7280',bg:'rgba(107,114,128,.08)'},{id:'ouro',cor:'#d97706',bg:'rgba(217,119,6,.08)'}];
+  if(btn&&btn.parentNode){
+    btn.parentNode.querySelectorAll('button').forEach((b,i)=>{
+      const t=tiers[i];if(!t)return;
+      const ativa=c.tier===t.id;
+      b.style.border=`2px solid ${ativa?t.cor:t.cor+'40'}`;
+      b.style.background=ativa?t.bg:'transparent';
+      b.querySelector('div:nth-child(2)').style.color=ativa?t.cor:'var(--text-2)';
+      b.querySelector('div:nth-child(2)').style.fontWeight=ativa?'800':'600';
+    });
+  }
+}
 function saveCsRenovadoStatus(clientId,val){
   const c=clients.find(x=>x.id===clientId);if(!c)return;
   if(!c.cd_cs)c.cd_cs={};
@@ -8496,7 +8536,7 @@ function renderCsCarteira(ativos,hoje,filterKey){
       return`<div style="background:var(--surface);border:1px solid ${ctrato&&ctrato.restantes<=30?ctrato.cor+'40':'var(--border)'};border-radius:10px;padding:14px 18px">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <div style="flex:1;min-width:180px">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">${c.company_name}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">${{bronze:'🥉',prata:'🥈',ouro:'🥇'}[c.tier]?`<span style="font-size:11px;margin-right:4px">${{bronze:'🥉',prata:'🥈',ouro:'🥇'}[c.tier]}</span>`:''} ${c.company_name}</div>
             <div style="font-size:11px;color:var(--text-3)">${c.niche||'—'} · ${gestor}</div>
           </div>
           <!-- Contrato -->
@@ -8741,6 +8781,21 @@ function openCsClientModal(clientId){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${servicos.map(s=>`<span style="font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-weight:500">${s}</span>`).join('')}
         </div>`:''}
+      <!-- Tier do cliente -->
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🏆 Classificação do cliente</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${[{id:'bronze',emoji:'🥉',label:'Bronze',cor:'#b45309',bg:'rgba(180,83,9,.08)',desc:'Cliente em desenvolvimento'},{id:'prata',emoji:'🥈',label:'Prata',cor:'#6b7280',bg:'rgba(107,114,128,.08)',desc:'Cliente consolidado'},{id:'ouro',emoji:'🥇',label:'Ouro',cor:'#d97706',bg:'rgba(217,119,6,.08)',desc:'Cliente estratégico'}].map(t=>{
+            const ativa=c.tier===t.id;
+            return`<button type="button" onclick="csSetTierModal('${c.id}','${t.id}',this)"
+              style="flex:1;min-width:80px;padding:10px 8px;border-radius:10px;border:2px solid ${ativa?t.cor:t.cor+'40'};background:${ativa?t.bg:'transparent'};cursor:pointer;text-align:center;transition:.15s">
+              <div style="font-size:22px;margin-bottom:3px">${t.emoji}</div>
+              <div style="font-size:12px;font-weight:${ativa?800:600};color:${ativa?t.cor:'var(--text-2)'}">${t.label}</div>
+              <div style="font-size:10px;color:var(--text-3)">${t.desc}</div>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>
     </div>`;
 
   const body=`<div style="display:flex;flex-direction:column;gap:12px">
@@ -8787,7 +8842,8 @@ function openCsClientModal(clientId){
     <div><label class="lbl">Observação geral CS</label>
       <textarea class="inp" id="csm-obs" rows="2" style="margin-top:4px;width:100%;box-sizing:border-box">${cs.obs||''}</textarea></div>
   </div>`;
-  showInlineModal('CS — '+c.company_name, body, ()=>saveCsClientModal(clientId), 580);
+  const tierEmoji={bronze:'🥉',prata:'🥈',ouro:'🥇'}[c.tier]||'';
+  showInlineModal((tierEmoji?tierEmoji+' ':'')+c.company_name, body, ()=>saveCsClientModal(clientId), 580);
 }
 
 function saveCsClientModal(clientId){
