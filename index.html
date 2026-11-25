@@ -8086,26 +8086,18 @@ function renderCs(){
     <!-- Container da ficha individual (oculto por padrão) -->
     <div id="cs-ficha-cliente" style="display:none"></div>
 
-    <!-- TABS (ordem: Visão Geral, Farol, Carteira, Renovações, Oportunidades, Reuniões, Relatórios, Alertas | + Fases, Tarefas, Rotina ocultos mas preservados) -->
+    <!-- TABS -->
     <div class="client-tabs-bar" style="margin-bottom:16px;flex-wrap:wrap;gap:4px">
-      <button class="client-tab active" onclick="csSetTab('visaogeral',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Visão Geral</button>
-      <button class="client-tab" onclick="csSetTab('farol',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Farol</button>
-      <button class="client-tab" onclick="csSetTab('carteira',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Carteira</button>
-      <button class="client-tab" onclick="csSetTab('renovacoes',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Renovações</button>
-      <button class="client-tab" onclick="csSetTab('oportunidades',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Oportunidades</button>
-      <button class="client-tab" onclick="csSetTab('reunioes',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Reuniões</button>
-      <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
-      <!-- Tabs preservadas mas menos proeminentes -->
-      <button class="client-tab" onclick="csSetTab('kanban',this)" style="opacity:.7;font-size:12px">Fases</button>
-      <button class="client-tab" onclick="csSetTab('tarefas',this)" style="opacity:.7;font-size:12px">Tarefas</button>
-      <button class="client-tab" onclick="csSetTab('rotina',this)" style="opacity:.7;font-size:12px">Rotina</button>
+      <button class="client-tab active" onclick="csSetTab('visaogeral',this)">🏠 Visão Geral</button>
+      <button class="client-tab" onclick="csSetTab('farol',this)">🚦 Farol</button>
+      <button class="client-tab" onclick="csSetTab('carteira',this)">🗂 Carteira</button>
+      <button class="client-tab" onclick="csSetTab('renovacoes',this)">🔄 Renovações</button>
+      <button class="client-tab" onclick="csSetTab('oportunidades',this)">💡 Oportunidades</button>
+      <button class="client-tab" onclick="csSetTab('reunioes',this)">📅 Reuniões</button>
+      <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">🔔 Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
+      <button class="client-tab" onclick="csSetTab('kanban',this)" style="opacity:.65;font-size:12px">📌 Fases</button>
+      <button class="client-tab" onclick="csSetTab('tarefas',this)" style="opacity:.65;font-size:12px">✅ Tarefas</button>
+      <button class="client-tab" onclick="csSetTab('rotina',this)" style="opacity:.65;font-size:12px">📆 Rotina</button>
     </div>
 
     <div id="cs-tab-visaogeral" class="cs-tab">${renderCsVisaoGeral(ativos,hoje)}</div>
@@ -8126,9 +8118,10 @@ function renderCs(){
     document.getElementById('cs-kpis-wrap').style.display='none';
     renderFichaCs(window._csFichaClienteId,'info');
   } else {
-    // Show Visão Geral como tab inicial
+    // Show Visão Geral como tab inicial (KPIs antigos ficam ocultos aqui)
     document.getElementById('cs-tab-visaogeral').style.display='block';
-    // Render KPIs after body HTML is set (needs the DOM element)
+    document.getElementById('cs-kpis-wrap').style.display='none';
+    // Render KPIs (ficam prontos para quando o usuário trocar para outra tab)
     _renderCsKpis(ativos,hoje);
   }
 }
@@ -8318,7 +8311,10 @@ function csSetTab(tab,el){
   document.querySelectorAll('.cs-tab').forEach(t=>t.style.display='none');
   document.getElementById('cs-tab-'+tab).style.display='block';
   document.querySelectorAll('#cs-body .client-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
+  if(el)el.classList.add('active');
+  // Esconde os KPIs antigos na Visão Geral (os dados já estão no painel)
+  const kw=document.getElementById('cs-kpis-wrap');
+  if(kw)kw.style.display=(tab==='visaogeral')?'none':'';
 }
 
 function csFilterBy(key){
@@ -8817,7 +8813,9 @@ function renderCsFarol(ativos,hoje){
         <!-- Linha 1: nome + score + ações -->
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="flex:1;min-width:150px">
-            <div style="font-size:13px;font-weight:700;color:var(--text)">${emoji} ${c.company_name}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+              <span style="font-size:9px;color:${cor}" title="${status}">●</span>${c.company_name}
+            </div>
             <div style="font-size:11px;color:var(--text-3);margin-top:1px">${c.niche||'—'} · ${c.manager||'—'}</div>
           </div>
           <!-- Score mini -->
@@ -8835,14 +8833,8 @@ function renderCsFarol(ativos,hoje){
             <div style="font-size:12px;font-weight:700;color:var(--text)">${fmtR(ltv)}</div>
             <div style="font-size:10px;color:var(--text-3)">LTV contrato</div>
           </div>`:''}
-          <!-- Tier do cliente -->
-          <div style="display:flex;gap:3px;flex-shrink:0">${tierBtns}</div>
-          <!-- Farol manual -->
-          <div style="display:flex;gap:4px;flex-shrink:0">
-            <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='baixo'?'#16a34a':'var(--border)'};background:${c.churn_risk==='baixo'?'rgba(22,163,74,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','baixo')" title="Saudável">🟢</button>
-            <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='medio'?'#d97706':'var(--border)'};background:${c.churn_risk==='medio'?'rgba(217,119,6,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','medio')" title="Atenção">🟡</button>
-            <button type="button" style="width:26px;height:26px;border-radius:6px;border:1.5px solid ${c.churn_risk==='alto'?'#dc2626':'var(--border)'};background:${c.churn_risk==='alto'?'rgba(220,38,38,.15)':'transparent'};cursor:pointer;font-size:13px" onclick="csSetFarolStatus('${c.id}','alto')" title="Em risco">🔴</button>
-          </div>
+          <!-- Tier badge discreto -->
+          ${c.tier?`<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:${c.tier==='ouro'?'rgba(217,119,6,.1)':c.tier==='prata'?'rgba(107,114,128,.1)':'rgba(180,83,9,.1)'};color:${c.tier==='ouro'?'#d97706':c.tier==='prata'?'#6b7280':'#b45309'}">${c.tier==='ouro'?'🥇 Ouro':c.tier==='prata'?'🥈 Prata':'🥉 Bronze'}</span>`:''}
           <button type="button" class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
         </div>
         <!-- Linha 2: indicadores -->
