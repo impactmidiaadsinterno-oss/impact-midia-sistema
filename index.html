@@ -8083,6 +8083,9 @@ function renderCs(){
     <!-- KPIs dashboard -->
     <div id="cs-kpis-wrap"></div>
 
+    <!-- Container da ficha individual (oculto por padrão) -->
+    <div id="cs-ficha-cliente" style="display:none"></div>
+
     <!-- TABS -->
     <div class="client-tabs-bar" style="margin-bottom:16px;flex-wrap:wrap;gap:4px">
       <button class="client-tab active" onclick="csSetTab('farol',this)">🚦 Farol</button>
@@ -8106,10 +8109,18 @@ function renderCs(){
     <div id="cs-tab-rotina" class="cs-tab" style="display:none">${renderCsRotina()}</div>
     <div id="cs-tab-alertas" class="cs-tab" style="display:none">${renderCsAlertas(ativos,hoje)}</div>
   `;
-  // Show first tab (farol)
-  document.getElementById('cs-tab-farol').style.display='block';
-  // Render KPIs after body HTML is set (needs the DOM element)
-  _renderCsKpis(ativos,hoje);
+  // Se há uma ficha aberta, restaura a visão da ficha
+  if(window._csFichaClienteId){
+    document.querySelectorAll('.cs-tab').forEach(el=>el.style.display='none');
+    document.querySelector('#cs-body .client-tabs-bar').style.display='none';
+    document.getElementById('cs-kpis-wrap').style.display='none';
+    renderFichaCs(window._csFichaClienteId,'info');
+  } else {
+    // Show first tab (farol)
+    document.getElementById('cs-tab-farol').style.display='block';
+    // Render KPIs after body HTML is set (needs the DOM element)
+    _renderCsKpis(ativos,hoje);
+  }
 }
 
 function _renderCsKpis(ativos,hoje){
@@ -8543,60 +8554,420 @@ function renderCsCarteira(ativos,hoje,filterKey){
     <button onclick="csFilterBy(null);renderCs();" style="font-size:11px;color:var(--text-3);background:none;border:1px solid var(--border);border-radius:6px;padding:2px 8px;cursor:pointer">✕ Limpar</button>
   </div>`:'';
   if(!ativos.length)return filterBadge+'<div style="text-align:center;padding:40px;color:var(--text-3)">Nenhum cliente encontrado para este filtro</div>';
-  const html=`<div style="display:flex;flex-direction:column;gap:8px">
-    ${ativos.map(c=>{
-      const cs=c.cd_cs||{};
-      const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(1000*60*60*24)):null;
-      const diasReu=cs.ultima_reuniao_mensal?Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(1000*60*60*24)):null;
-      const feedOk=diasFeed!==null&&diasFeed<=9;
-      const reunOk=diasReu!==null&&diasReu<=35;
-      const nps=cs.nps_atual;
-      const npsColor=nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626';
-      const gestor=c.manager||c.manager_name||'—';
-      const ctrato=_csContratoInfo(c,hoje);
-      return`<div style="background:var(--surface);border:1px solid ${ctrato&&ctrato.restantes<=30?ctrato.cor+'40':'var(--border)'};border-radius:10px;padding:14px 18px">
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-          <div style="flex:1;min-width:180px">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">${(c.tier==='bronze'?'🥉':c.tier==='prata'?'🥈':c.tier==='ouro'?'🥇':'')} ${c.company_name}</div>
-            <div style="font-size:11px;color:var(--text-3)">${c.niche||'—'} · ${gestor}</div>
+
+  // Campo de busca
+  const buscaBar=`<div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+    <div style="flex:1;position:relative">
+      <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.4" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="inp" id="cs-carteira-busca" placeholder="Buscar cliente..." style="padding-left:36px" oninput="csCarteiraBuscar(this.value)"/>
+    </div>
+  </div>`;
+
+  const cards=ativos.map(c=>{
+    const cs=c.cd_cs||{};
+    const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5)):null;
+    const diasReu=cs.ultima_reuniao_mensal?Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5)):null;
+    const feedOk=diasFeed!==null&&diasFeed<=9;
+    const reunOk=diasReu!==null&&diasReu<=35;
+    const nps=cs.nps_atual;
+    const npsColor=nps!=null?(nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'):'#6b7280';
+    const gestor=c.manager||c.manager_name||'—';
+    const ctrato=_csContratoInfo(c,hoje);
+    const bordaCor=ctrato&&ctrato.restantes<=30?ctrato.cor:c.churn_risk==='alto'?'#dc2626':c.churn_risk==='medio'?'#d97706':'var(--border)';
+
+    // badges onb/brief/feed/reu — estilo da imagem
+    const badge=(icon,label,ok,na)=>`<span style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${na?'rgba(107,114,128,.1)':ok?'rgba(22,163,74,.1)':'rgba(220,38,38,.1)'};color:${na?'#6b7280':ok?'#16a34a':'#dc2626'}">${icon} ${label} ${na?'—':ok?'✓':'—'}</span>`;
+
+    return`<div class="cs-carteira-card" data-nome="${c.company_name.toLowerCase()}" onclick="abrirFichaCs('${c.id}')"
+      style="background:var(--surface);border:1.5px solid ${bordaCor};border-radius:12px;padding:16px 20px;cursor:pointer;transition:box-shadow .15s,border-color .15s"
+      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.borderColor='${bordaCor==='var(--border)'?'#e11d48':bordaCor}'"
+      onmouseout="this.style.boxShadow='';this.style.borderColor='${bordaCor}'">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <!-- Nome + segmento -->
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px">
+            ${c.tier==='ouro'?'🥇':c.tier==='prata'?'🥈':c.tier==='bronze'?'🥉':''} ${c.company_name}
           </div>
-          <!-- Contrato -->
-          ${ctrato?`<div style="flex:0 0 180px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-              <span style="font-size:10px;color:var(--text-3)">Contrato · ${ctrato.meses}m</span>
-              <span style="font-size:11px;font-weight:700;color:${ctrato.cor}">${ctrato.label}</span>
-            </div>
-            <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
-              <div style="height:100%;width:${ctrato.pct}%;background:${ctrato.cor};border-radius:3px;transition:.4s"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-top:2px">
-              <span style="font-size:9px;color:var(--text-3)">${ctrato.ini}</span>
-              <span style="font-size:9px;color:var(--text-3)">${ctrato.fim}</span>
-            </div>
-          </div>`:`<div style="flex:0 0 140px;text-align:center"><span style="font-size:10px;color:var(--text-3)">Sem contrato definido</span></div>`}
-          <!-- Status checks -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <span title="Onboarding" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${cs.onboarding_feito?'rgba(22,163,74,.1)':'rgba(220,38,38,.1)'};color:${cs.onboarding_feito?'#16a34a':'#dc2626'}">
-              🚀 Onb ${cs.onboarding_feito?'✓':'—'}
-            </span>
-            <span title="Briefing" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${cs.briefing_feito?'rgba(22,163,74,.1)':'rgba(220,38,38,.1)'};color:${cs.briefing_feito?'#16a34a':'#dc2626'}">
-              📋 Brief ${cs.briefing_feito?'✓':'—'}
-            </span>
-            <span title="Feedback semanal" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${feedOk?'rgba(22,163,74,.1)':diasFeed===null?'rgba(107,114,128,.1)':'rgba(220,38,38,.1)'};color:${feedOk?'#16a34a':diasFeed===null?'#6b7280':'#dc2626'}">
-              💬 Feed ${diasFeed===null?'—':diasFeed+'d atrás'}
-            </span>
-            <span title="Reunião mensal" style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${reunOk?'rgba(22,163,74,.1)':diasReu===null?'rgba(107,114,128,.1)':'rgba(217,119,6,.1)'};color:${reunOk?'#16a34a':diasReu===null?'#6b7280':'#d97706'}">
-              📅 Reu ${diasReu===null?'—':diasReu+'d atrás'}
-            </span>
-            ${nps!==undefined&&nps!==null?`<span style="font-size:12px;font-weight:800;color:${npsColor};background:${npsColor}15;padding:3px 9px;border-radius:6px">NPS ${nps}</span>`:''}
-            ${c.churn_risk==='alto'?`<span style="font-size:11px;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:3px 9px;border-radius:6px">⚠️ Risco</span>`:''}
+          <div style="font-size:12px;color:var(--text-3)">${c.niche||'—'} · ${gestor}</div>
+        </div>
+        <!-- Contrato + barra -->
+        ${ctrato?`<div style="flex:0 0 200px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+            <span style="font-size:10px;color:var(--text-3)">Contrato · ${ctrato.meses}m</span>
+            <span style="font-size:12px;font-weight:800;color:${ctrato.cor}">${ctrato.label}</span>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openCsClientModal('${c.id}')">Registrar</button>
+          <div style="height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden;margin-bottom:4px">
+            <div style="height:100%;width:${ctrato.pct}%;background:${ctrato.cor};border-radius:4px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:10px;color:var(--text-3)">${ctrato.ini}</span>
+            <span style="font-size:10px;color:var(--text-3)">${ctrato.fim}</span>
+          </div>
+        </div>`:`<div style="flex:0 0 140px;text-align:center;font-size:11px;color:var(--text-3)">Sem contrato</div>`}
+        <!-- Badges -->
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+          ${badge('🚀','Onb',cs.onboarding_feito,false)}
+          ${badge('📋','Brief',cs.briefing_feito,false)}
+          ${badge('💬','Feed',feedOk,diasFeed===null)}
+          ${badge('📅','Reu',reunOk,diasReu===null)}
+        </div>
+        <!-- NPS -->
+        <div style="flex:0 0 60px;text-align:center">
+          ${nps!=null?`<span style="font-size:14px;font-weight:800;color:${npsColor}">NPS ${nps}</span>`:
+          `<span style="font-size:12px;color:var(--text-3)">NPS —</span>`}
+        </div>
+        <!-- Botão -->
+        <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();abrirFichaCs('${c.id}')"
+          style="flex-shrink:0;background:#1d4ed8;border-color:#1d4ed8;border-radius:8px;padding:7px 16px;font-weight:600">
+          Ver cliente →
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return filterBadge+buscaBar+`<div id="cs-carteira-lista" style="display:flex;flex-direction:column;gap:8px">${cards}</div>`;
+}
+
+function csCarteiraBuscar(termo){
+  const t=termo.toLowerCase().trim();
+  document.querySelectorAll('.cs-carteira-card').forEach(el=>{
+    const nome=el.dataset.nome||'';
+    el.style.display=(!t||nome.includes(t))?'':'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// FICHA INDIVIDUAL DO CLIENTE (CS)
+// ══════════════════════════════════════════════════════
+function abrirFichaCs(clientId){
+  window._csFichaClienteId=clientId;
+  // Esconde as tabs normais e mostra a ficha
+  const tabsBar=document.querySelector('#cs-body .client-tabs-bar');
+  const kpisWrap=document.getElementById('cs-kpis-wrap');
+  document.querySelectorAll('#cs-body .cs-tab').forEach(el=>el.style.display='none');
+  if(tabsBar)tabsBar.style.display='none';
+  if(kpisWrap)kpisWrap.style.display='none';
+  const fichaEl=document.getElementById('cs-ficha-cliente');
+  if(fichaEl)fichaEl.style.display='block';
+  renderFichaCs(clientId,'info');
+}
+
+function voltarParaCarteira(){
+  window._csFichaClienteId=null;
+  const fichaEl=document.getElementById('cs-ficha-cliente');
+  if(fichaEl)fichaEl.style.display='none';
+  const tabsBar=document.querySelector('#cs-body .client-tabs-bar');
+  const kpisWrap=document.getElementById('cs-kpis-wrap');
+  if(tabsBar)tabsBar.style.display='';
+  if(kpisWrap)kpisWrap.style.display='';
+  // Esconde todas as tabs e mostra só a Carteira
+  document.querySelectorAll('#cs-body .cs-tab').forEach(el=>el.style.display='none');
+  const tabCarteira=document.getElementById('cs-tab-carteira');
+  if(tabCarteira)tabCarteira.style.display='block';
+  // Atualiza active no botão de tab
+  document.querySelectorAll('#cs-body .client-tabs-bar .client-tab').forEach(b=>{
+    b.classList.toggle('active',b.textContent.includes('Carteira'));
+  });
+  // Restaura KPIs
+  _renderCsKpis&&_renderCsKpis(
+    clients.filter(c=>c.status==='ativo'&&(currentSystemUser?.level==='cs'?c.cs_id===currentSystemUser.id:true)),
+    (()=>{const h=new Date();h.setHours(0,0,0,0);return h;})()
+  );
+}
+
+function renderFichaCs(clientId,abaAtiva){
+  const c=clients.find(x=>x.id===clientId);
+  if(!c){voltarParaCarteira();return;}
+  const cs=c.cd_cs||{};
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const ctrato=_csContratoInfo(c,hoje);
+  const isCs=currentSystemUser&&currentSystemUser.level==='cs';
+
+  // Dados de contrato formatados
+  const startFmt=c.start_date?new Date(c.start_date+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+  const endFmt=(c.start_date&&c.contract_months)?(()=>{const d=new Date(c.start_date+'T00:00:00');d.setMonth(d.getMonth()+Number(c.contract_months));return d.toLocaleDateString('pt-BR');})():'—';
+
+  // Farol
+  const farolMap={baixo:{emoji:'🟢',label:'Saudável',sub:'Bom engajamento e satisfação',cor:'#16a34a',bg:'rgba(22,163,74,.08)',brd:'rgba(22,163,74,.3)'},medio:{emoji:'🟡',label:'Atenção',sub:'Mudança no comportamento',cor:'#d97706',bg:'rgba(217,119,6,.08)',brd:'rgba(217,119,6,.3)'},alto:{emoji:'🔴',label:'Em risco',sub:'Sinais de possível cancelamento',cor:'#dc2626',bg:'rgba(220,38,38,.08)',brd:'rgba(220,38,38,.3)'}};
+  const farolAtual=farolMap[c.churn_risk]||null;
+
+  // Tier
+  const tierMap={bronze:{emoji:'🥉',label:'Bronze',sub:'Cliente em desenvolvimento',cor:'#b45309',bg:'rgba(180,83,9,.08)',brd:'rgba(180,83,9,.3)'},prata:{emoji:'🥈',label:'Prata',sub:'Cliente consolidado',cor:'#6b7280',bg:'rgba(107,114,128,.08)',brd:'rgba(107,114,128,.3)'},ouro:{emoji:'🥇',label:'Ouro',sub:'Cliente estratégico',cor:'#d97706',bg:'rgba(217,119,6,.08)',brd:'rgba(217,119,6,.3)'}};
+  const tierAtual=tierMap[c.tier]||null;
+
+  // NPS
+  const nps=cs.nps_atual;
+  const npsColor=nps!=null?(nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'):'#6b7280';
+
+  // Datas formatadas
+  const fmtDt=s=>s?new Date(s+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+
+  // Aba conteúdo
+  let abaConteudo='';
+  if(abaAtiva==='info'){
+    // Bloco: Dados do cliente
+    const dadosGrid=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Responsável</div><div style="font-size:14px;font-weight:700;color:var(--text)">${c.contact_name||c.company_name||'—'}</div></div>
+        <div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Segmento</div><div style="font-size:14px;font-weight:700;color:var(--text)">${c.niche||'—'}</div></div>
+        <div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Gestora</div><div style="font-size:14px;font-weight:700;color:var(--text)">${c.manager||'—'}</div></div>
+        <div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Início do contrato</div><div style="font-size:14px;font-weight:700;color:var(--text)">${startFmt}</div></div>
+        <div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Término do contrato</div><div style="font-size:14px;font-weight:700;color:var(--text)">${endFmt}</div></div>
+        <div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Vigência</div><div style="font-size:14px;font-weight:700;color:var(--text)">${c.contract_months?c.contract_months+' meses':'—'}</div></div>
+        ${c.city?`<div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">Cidade</div><div style="font-size:14px;font-weight:700;color:var(--text)">${c.city}</div></div>`:''}
+        ${(c.phone||c.whatsapp)?`<div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">WhatsApp</div><div style="font-size:14px;font-weight:700;color:var(--text)">${c.phone||c.whatsapp}</div></div>`:''}
+        ${c.email?`<div><div style="font-size:11px;color:var(--text-3);margin-bottom:2px">E-mail</div><div style="font-size:14px;font-weight:700;color:var(--text)"><a href="mailto:${c.email}" style="color:var(--brand)">${c.email}</a></div></div>`:''}
+      </div>`;
+
+    // Bloco: Tempo de contrato
+    const tempoContrato=ctrato?`
+      <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span style="font-size:15px;font-weight:700;color:var(--text)">Tempo de contrato</span>
+          <span style="margin-left:auto;font-size:15px;font-weight:800;color:${ctrato.cor}">${ctrato.label}</span>
+        </div>
+        <div style="height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden;margin-bottom:8px">
+          <div style="height:100%;width:${ctrato.pct}%;background:${ctrato.cor};border-radius:5px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="font-size:12px;color:var(--text-3)">${ctrato.ini}</span>
+          <span style="font-size:12px;color:var(--text-3)">${ctrato.pct}% do contrato cumprido</span>
+          <span style="font-size:12px;color:var(--text-3)">${ctrato.fim}</span>
+        </div>
+      </div>`:'' ;
+
+    // Bloco: Etapas do processo
+    const etapas=[
+      {key:'onboarding_feito',label:'Onboarding realizado'},
+      {key:'briefing_feito',label:'Briefing realizado'},
+      {key:'grupo_whats_criado',label:'Grupo de WhatsApp criado'},
+      {key:'feedback_semanal_hoje',label:'Feedback semanal (em andamento)'},
+      {key:'reuniao_mensal_ok',label:'Reunião mensal (em andamento)'},
+    ];
+    const etapasHtml=etapas.map(e=>`
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0">
+        <input type="checkbox" ${cs[e.key]?'checked':''} style="width:18px;height:18px;accent-color:#e11d48;cursor:pointer"
+          onchange="csFichaToggleEtapa('${c.id}','${e.key}',this.checked)"/>
+        <span style="font-size:14px;color:var(--text)">${e.label}</span>
+      </label>`).join('');
+
+    // Bloco: Classificação + Farol (lado a lado)
+    const tierBtnsHtml=['bronze','prata','ouro'].map(tid=>{
+      const t=tierMap[tid];
+      const ativa=c.tier===tid;
+      return`<button onclick="csSetTierFicha('${c.id}','${tid}')"
+        style="flex:1;padding:16px 10px;border-radius:12px;border:2px solid ${ativa?t.brd:'var(--border)'};background:${ativa?t.bg:'var(--surface)'};cursor:pointer;text-align:center;transition:.15s">
+        <div style="font-size:28px;margin-bottom:5px">${t.emoji}</div>
+        <div style="font-size:13px;font-weight:${ativa?800:600};color:${ativa?t.cor:'var(--text-2)'}">${t.label}</div>
+        <div style="font-size:11px;color:var(--text-3)">${t.sub}</div>
+      </button>`;
+    }).join('');
+
+    const farolBtnsHtml=[['baixo','🟢','Saudável','Bom engajamento e satisfação'],['medio','🟡','Atenção','Mudança no comportamento'],['alto','🔴','Em risco','Sinais de cancelamento']].map(([fid,femoji,flabel,fsub])=>{
+      const fm=farolMap[fid];
+      const ativa=c.churn_risk===fid;
+      return`<button onclick="csFichaSetFarol('${c.id}','${fid}')"
+        style="flex:1;padding:16px 10px;border-radius:12px;border:2px solid ${ativa?fm.brd:'var(--border)'};background:${ativa?fm.bg:'var(--surface)'};cursor:pointer;text-align:center;transition:.15s">
+        <div style="font-size:22px;margin-bottom:5px">${femoji}</div>
+        <div style="font-size:13px;font-weight:${ativa?800:600};color:${ativa?fm.cor:'var(--text-2)'}">${flabel}</div>
+        <div style="font-size:11px;color:var(--text-3)">${fsub}</div>
+      </button>`;
+    }).join('');
+
+    abaConteudo=`
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+        <!-- COLUNA ESQUERDA -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- Dados do cliente -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span style="font-size:15px;font-weight:700;color:var(--text)">Dados do cliente</span>
+            </div>
+            ${dadosGrid}
+          </div>
+          <!-- Tempo de contrato -->
+          ${tempoContrato}
+          <!-- Etapas do processo -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+              <span style="font-size:15px;font-weight:700;color:var(--text)">Etapas do processo</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">${etapasHtml}</div>
+          </div>
+          <!-- Classificação + Farol -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <span style="font-size:16px">🏆</span>
+                <span style="font-size:15px;font-weight:700;color:var(--text)">Classificação do cliente</span>
+              </div>
+              <div style="display:flex;gap:8px">${tierBtnsHtml}</div>
+            </div>
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <span style="font-size:16px">🚦</span>
+                <span style="font-size:15px;font-weight:700;color:var(--text)">Farol do cliente</span>
+              </div>
+              <div style="display:flex;gap:8px">${farolBtnsHtml}</div>
+            </div>
+          </div>
+        </div>
+        <!-- COLUNA DIREITA -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- Últimos registros -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span style="font-size:15px;font-weight:700;color:var(--text)">Últimos registros</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span style="font-size:13px;color:var(--text-2)">Último feedback semanal</span>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:${cs.ultimo_feedback_semanal?'var(--text)':'var(--text-3)'}">${fmtDt(cs.ultimo_feedback_semanal)}</span>
+              </div>
+              <div style="height:1px;background:var(--border)"></div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span style="font-size:13px;color:var(--text-2)">Última reunião mensal</span>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:${cs.ultima_reuniao_mensal?'var(--text)':'var(--text-3)'}">${fmtDt(cs.ultima_reuniao_mensal)}</span>
+              </div>
+              <div style="height:1px;background:var(--border)"></div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <span style="font-size:13px;color:var(--text-2)">Último NPS</span>
+                </div>
+                ${nps!=null?`<span style="font-size:13px;font-weight:800;color:${npsColor};background:${npsColor}15;border-radius:6px;padding:3px 10px">${nps}/10</span>`:`<span style="font-size:13px;color:var(--text-3)">—</span>`}
+              </div>
+            </div>
+          </div>
+          <!-- Observações da CS -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span style="font-size:15px;font-weight:700;color:var(--text)">Observações da CS</span>
+              </div>
+              <button onclick="csFichaEditarObs('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+            </div>
+            <div id="cs-ficha-obs-display" style="font-size:13px;color:${cs.obs?'var(--text-2)':'var(--text-3)'};line-height:1.6;min-height:40px">
+              ${cs.obs||'<em>Nenhuma observação registrada. Clique no lápis para adicionar.</em>'}
+            </div>
+            <textarea id="cs-ficha-obs-input" style="display:none;width:100%;box-sizing:border-box;font-size:13px;line-height:1.6;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--surface-2);color:var(--text);resize:vertical" rows="4"
+              onblur="csFichaSalvarObs('${c.id}',this.value)">${cs.obs||''}</textarea>
+          </div>
+          <!-- Registrar contato rápido -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:20px">
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px">📝 Registrar contato</div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="openCsClientModal('${c.id}')">
+              Abrir ficha completa de registro
+            </button>
+          </div>
         </div>
       </div>`;
-    }).join('')}
-  </div>`;
-  return filterBadge+(html||'');
+  } else if(abaAtiva==='nps'){
+    abaConteudo=`<div style="text-align:center;padding:60px 24px;color:var(--text-3)">
+      <div style="font-size:40px;margin-bottom:12px">📊</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Histórico de NPS — em breve</div>
+      <div style="font-size:13px">Esta seção será implementada na próxima etapa.</div>
+    </div>`;
+  } else if(abaAtiva==='historico'){
+    abaConteudo=`<div style="text-align:center;padding:60px 24px;color:var(--text-3)">
+      <div style="font-size:40px;margin-bottom:12px">🕐</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Histórico de contatos — em breve</div>
+      <div style="font-size:13px">Esta seção será implementada na próxima etapa.</div>
+    </div>`;
+  }
+
+  const fichaEl=document.getElementById('cs-ficha-cliente');
+  if(!fichaEl)return;
+  fichaEl.innerHTML=`
+    <!-- Voltar -->
+    <div style="margin-bottom:20px">
+      <button onclick="voltarParaCarteira()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-3);font-size:14px;padding:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar para a Carteira
+      </button>
+    </div>
+    <!-- Header do cliente -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+      <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#fce7f3,#fdf4ff);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">
+        ${c.tier==='ouro'?'🥇':c.tier==='prata'?'🥈':c.tier==='bronze'?'🥉':'🏢'}
+      </div>
+      <div style="flex:1">
+        <div style="font-size:22px;font-weight:800;color:var(--text)">${c.company_name}</div>
+        <div style="font-size:13px;color:var(--text-3);margin-top:2px">${c.niche||'—'} · ${c.manager||'—'}</div>
+      </div>
+      <span style="font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;background:${c.status==='ativo'?'rgba(22,163,74,.12)':'rgba(107,114,128,.12)'};color:${c.status==='ativo'?'#16a34a':'#6b7280'}">
+        ${c.status==='ativo'?'● Ativo':'● '+c.status}
+      </span>
+    </div>
+    <!-- Abas internas -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:24px">
+      ${[['info','ⓘ Informações gerais'],['nps','📊 NPS'],['historico','🕐 Histórico']].map(([id,label])=>`
+        <button onclick="renderFichaCs('${c.id}','${id}')"
+          style="padding:12px 20px;background:none;border:none;cursor:pointer;font-size:14px;font-weight:${abaAtiva===id?700:500};color:${abaAtiva===id?'#e11d48':'var(--text-3)'};border-bottom:2px solid ${abaAtiva===id?'#e11d48':'transparent'};margin-bottom:-2px;transition:.15s">
+          ${label}
+        </button>`).join('')}
+    </div>
+    <!-- Conteúdo da aba -->
+    <div>${abaConteudo}</div>
+  `;
+}
+
+function csFichaToggleEtapa(clientId,key,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  c.cd_cs[key]=val;
+  saveAll();showToast(val?'Etapa marcada ✓':'Etapa desmarcada');
+}
+
+function csSetTierFicha(clientId,tierId){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  c.tier=(c.tier===tierId?null:tierId);
+  saveAll();
+  const labels={bronze:'🥉 Bronze',prata:'🥈 Prata',ouro:'🥇 Ouro'};
+  showToast(c.tier?`${labels[c.tier]} definido`:'Classificação removida');
+  renderFichaCs(clientId,'info');
+}
+
+function csFichaSetFarol(clientId,nivel){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  c.churn_risk=nivel;
+  saveAll();
+  showToast({baixo:'🟢 Saudável',medio:'🟡 Atenção',alto:'🔴 Em risco'}[nivel]);
+  renderFichaCs(clientId,'info');
+}
+
+function csFichaEditarObs(clientId){
+  const display=document.getElementById('cs-ficha-obs-display');
+  const input=document.getElementById('cs-ficha-obs-input');
+  if(!display||!input)return;
+  display.style.display='none';
+  input.style.display='block';
+  input.focus();
+}
+
+function csFichaSalvarObs(clientId,val){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  c.cd_cs.obs=val;
+  saveAll();
+  const display=document.getElementById('cs-ficha-obs-display');
+  const input=document.getElementById('cs-ficha-obs-input');
+  if(display){display.style.display='block';display.innerHTML=val||'<em>Nenhuma observação registrada. Clique no lápis para adicionar.</em>';}
+  if(input)input.style.display='none';
+  showToast('Observação salva');
 }
 
 function renderCsChecklist(ativos,hoje){
