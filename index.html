@@ -8086,38 +8086,48 @@ function renderCs(){
     <!-- Container da ficha individual (oculto por padrão) -->
     <div id="cs-ficha-cliente" style="display:none"></div>
 
-    <!-- TABS -->
+    <!-- TABS (ordem: Visão Geral, Farol, Carteira, Renovações, Oportunidades, Reuniões, Relatórios, Alertas | + Fases, Tarefas, Rotina ocultos mas preservados) -->
     <div class="client-tabs-bar" style="margin-bottom:16px;flex-wrap:wrap;gap:4px">
-      <button class="client-tab active" onclick="csSetTab('farol',this)">🚦 Farol</button>
-      <button class="client-tab" onclick="csSetTab('carteira',this)">🗂 Carteira</button>
-      <button class="client-tab" onclick="csSetTab('kanban',this)">📌 Fases</button>
-      <button class="client-tab" onclick="csSetTab('renovacoes',this)">🔄 Renovações</button>
-      <button class="client-tab" onclick="csSetTab('tarefas',this)">✅ Tarefas</button>
-      <button class="client-tab" onclick="csSetTab('oportunidades',this)">💡 Oportunidades</button>
-      <button class="client-tab" onclick="csSetTab('reunioes',this)">📅 Reuniões de Resultados</button>
-      <button class="client-tab" onclick="csSetTab('rotina',this)">📆 Rotina Semanal</button>
-      <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">🔔 Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
+      <button class="client-tab active" onclick="csSetTab('visaogeral',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Visão Geral</button>
+      <button class="client-tab" onclick="csSetTab('farol',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Farol</button>
+      <button class="client-tab" onclick="csSetTab('carteira',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Carteira</button>
+      <button class="client-tab" onclick="csSetTab('renovacoes',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Renovações</button>
+      <button class="client-tab" onclick="csSetTab('oportunidades',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Oportunidades</button>
+      <button class="client-tab" onclick="csSetTab('reunioes',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Reuniões</button>
+      <button class="client-tab" style="position:relative" onclick="csSetTab('alertas',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Alertas${totalAlertas>0?`<span style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">${totalAlertas}</span>`:''}</button>
+      <!-- Tabs preservadas mas menos proeminentes -->
+      <button class="client-tab" onclick="csSetTab('kanban',this)" style="opacity:.7;font-size:12px">Fases</button>
+      <button class="client-tab" onclick="csSetTab('tarefas',this)" style="opacity:.7;font-size:12px">Tarefas</button>
+      <button class="client-tab" onclick="csSetTab('rotina',this)" style="opacity:.7;font-size:12px">Rotina</button>
     </div>
 
-    <div id="cs-tab-farol" class="cs-tab">${renderCsFarol(ativos,hoje)}</div>
+    <div id="cs-tab-visaogeral" class="cs-tab">${renderCsVisaoGeral(ativos,hoje)}</div>
+    <div id="cs-tab-farol" class="cs-tab" style="display:none">${renderCsFarol(ativos,hoje)}</div>
     <div id="cs-tab-carteira" class="cs-tab" style="display:none">${renderCsCarteira(ativos,hoje)}</div>
-    <div id="cs-tab-kanban" class="cs-tab" style="display:none">${renderCsKanban(ativos)}</div>
     <div id="cs-tab-renovacoes" class="cs-tab" style="display:none">${renderCsRenovacoes(ativos,hoje)}</div>
-    <div id="cs-tab-tarefas" class="cs-tab" style="display:none">${renderCsTarefas(ativos)}</div>
     <div id="cs-tab-oportunidades" class="cs-tab" style="display:none">${renderCsOportunidades(ativos)}</div>
     <div id="cs-tab-reunioes" class="cs-tab" style="display:none">${renderCsReunioes(ativos,hoje)}</div>
-    <div id="cs-tab-rotina" class="cs-tab" style="display:none">${renderCsRotina()}</div>
     <div id="cs-tab-alertas" class="cs-tab" style="display:none">${renderCsAlertas(ativos,hoje)}</div>
+    <div id="cs-tab-kanban" class="cs-tab" style="display:none">${renderCsKanban(ativos)}</div>
+    <div id="cs-tab-tarefas" class="cs-tab" style="display:none">${renderCsTarefas(ativos)}</div>
+    <div id="cs-tab-rotina" class="cs-tab" style="display:none">${renderCsRotina()}</div>
   `;
   // Se há uma ficha aberta, restaura a visão da ficha
   if(window._csFichaClienteId){
-    document.querySelectorAll('.cs-tab').forEach(el=>el.style.display='none');
+    document.querySelectorAll('#cs-body .cs-tab').forEach(el=>el.style.display='none');
     document.querySelector('#cs-body .client-tabs-bar').style.display='none';
     document.getElementById('cs-kpis-wrap').style.display='none';
     renderFichaCs(window._csFichaClienteId,'info');
   } else {
-    // Show first tab (farol)
-    document.getElementById('cs-tab-farol').style.display='block';
+    // Show Visão Geral como tab inicial
+    document.getElementById('cs-tab-visaogeral').style.display='block';
     // Render KPIs after body HTML is set (needs the DOM element)
     _renderCsKpis(ativos,hoje);
   }
@@ -8209,6 +8219,101 @@ function _renderCsKpis(ativos,hoje){
   </div>`;
 }
 
+// ══════════════════════════════════════════════════════
+// CICLOS AUTOMÁTICOS DE FEEDBACK SEMANAL E REUNIÃO MENSAL
+// ══════════════════════════════════════════════════════
+
+/**
+ * Retorna o status do feedback semanal de um cliente para a semana atual.
+ * Status: 'pendente' | 'aguardando' | 'concluido'
+ * A semana começa na segunda-feira.
+ */
+function _getFeedbackStatus(c, hoje){
+  const cs=c.cd_cs||{};
+  // Calcula a segunda-feira da semana atual
+  const seg=new Date(hoje);
+  const dow=seg.getDay(); // 0=dom, 1=seg...
+  seg.setDate(seg.getDate()-(dow===0?6:dow-1));
+  const segStr=seg.toISOString().slice(0,10);
+  // Verifica se existe registro de feedback desta semana
+  const registros=(cs.feedback_ciclos||[]);
+  const cicloAtual=registros.find(r=>r.semana===segStr);
+  if(!cicloAtual)return 'pendente';
+  return cicloAtual.status||'pendente';
+}
+
+/**
+ * Retorna o status da reunião mensal do cliente para o mês atual.
+ * Status: 'pendente' | 'aguardando' | 'concluido'
+ */
+function _getReuniaoStatus(c, hoje){
+  const cs=c.cd_cs||{};
+  const mesStr=hoje.toISOString().slice(0,7); // 'YYYY-MM'
+  const ciclos=(cs.reuniao_ciclos||[]);
+  const cicloAtual=ciclos.find(r=>r.mes===mesStr);
+  if(!cicloAtual)return 'pendente';
+  return cicloAtual.status||'pendente';
+}
+
+/**
+ * Avança o status do feedback semanal para o próximo estado.
+ * pendente → aguardando → concluido
+ */
+function csAvancarFeedback(clientId, novoStatus){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  const cs=c.cd_cs;
+  if(!cs.feedback_ciclos)cs.feedback_ciclos=[];
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const seg=new Date(hoje);
+  const dow=seg.getDay();
+  seg.setDate(seg.getDate()-(dow===0?6:dow-1));
+  const segStr=seg.toISOString().slice(0,10);
+  const idx=cs.feedback_ciclos.findIndex(r=>r.semana===segStr);
+  const hoje_str=new Date().toISOString().slice(0,10);
+  if(idx>=0){
+    cs.feedback_ciclos[idx].status=novoStatus;
+    if(novoStatus==='concluido'){
+      cs.feedback_ciclos[idx].data_conclusao=hoje_str;
+      cs.ultimo_feedback_semanal=hoje_str;
+    }
+  } else {
+    const reg={semana:segStr,status:novoStatus,criado_em:hoje_str};
+    if(novoStatus==='concluido'){reg.data_conclusao=hoje_str;cs.ultimo_feedback_semanal=hoje_str;}
+    cs.feedback_ciclos.unshift(reg);
+  }
+  saveAll();
+  showToast(novoStatus==='aguardando'?'Aguardando resposta do cliente':novoStatus==='concluido'?'Feedback concluído ✓':'Feedback pendente');
+  if(window._csFichaClienteId===clientId) renderFichaCs(clientId,'info');
+  else renderCs();
+}
+
+/**
+ * Avança o status da reunião mensal.
+ */
+function csAvancarReuniao(clientId, novoStatus){
+  const c=clients.find(x=>x.id===clientId);if(!c)return;
+  if(!c.cd_cs)c.cd_cs={};
+  const cs=c.cd_cs;
+  if(!cs.reuniao_ciclos)cs.reuniao_ciclos=[];
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const mesStr=hoje.toISOString().slice(0,7);
+  const idx=cs.reuniao_ciclos.findIndex(r=>r.mes===mesStr);
+  const hoje_str=new Date().toISOString().slice(0,10);
+  if(idx>=0){
+    cs.reuniao_ciclos[idx].status=novoStatus;
+    if(novoStatus==='concluido'){cs.reuniao_ciclos[idx].data_conclusao=hoje_str;cs.ultima_reuniao_mensal=hoje_str;}
+  } else {
+    const reg={mes:mesStr,status:novoStatus,criado_em:hoje_str};
+    if(novoStatus==='concluido'){reg.data_conclusao=hoje_str;cs.ultima_reuniao_mensal=hoje_str;}
+    cs.reuniao_ciclos.unshift(reg);
+  }
+  saveAll();
+  showToast(novoStatus==='aguardando'?'Aguardando confirmação do cliente':novoStatus==='concluido'?'Reunião concluída ✓':'Reunião pendente');
+  if(window._csFichaClienteId===clientId) renderFichaCs(clientId,'info');
+  else renderCs();
+}
+
 function csSetTab(tab,el){
   document.querySelectorAll('.cs-tab').forEach(t=>t.style.display='none');
   document.getElementById('cs-tab-'+tab).style.display='block';
@@ -8218,8 +8323,8 @@ function csSetTab(tab,el){
 
 function csFilterBy(key){
   // Switch to carteira tab and apply filter
-  const tabBtn=document.querySelector('#cs-body .client-tab:nth-child(2)');
-  csSetTab('carteira',tabBtn||document.querySelector('#cs-body .client-tab'));
+  const tabBtn=Array.from(document.querySelectorAll('#cs-body .client-tab')).find(b=>b.textContent.includes('Carteira'))||document.querySelector('#cs-body .client-tab');
+  csSetTab('carteira',tabBtn);
   // Store active filter
   window._csActiveFilter=key;
   // Re-render carteira with filter (só clientes da carteira da CS logada)
@@ -8287,6 +8392,307 @@ function calcCsScore(c,hoje){
   const demAbertas=(cs.logs||[]).filter(l=>l.tipo==='demanda'&&!l.resolvido).length;
   score=Math.max(0,score-demAbertas*5);
   return Math.min(100,Math.max(0,Math.round((score/pts)*100)));
+}
+
+// ══════════════════════════════════════════════════════
+// VISÃO GERAL CS — PAINEL ESTRATÉGICO
+// ══════════════════════════════════════════════════════
+function renderCsVisaoGeral(ativos, hoje){
+  // ── Filtro de mês/ano (usa window._csVgMes/_csVgAno)
+  const refMes=window._csVgMes!==undefined?window._csVgMes:hoje.getMonth();
+  const refAno=window._csVgAno!==undefined?window._csVgAno:hoje.getFullYear();
+  const refDate=new Date(refAno,refMes,1);
+  const refStr=refDate.toISOString().slice(0,7); // 'YYYY-MM'
+  const mesAnteriorDate=new Date(refAno,refMes-1,1);
+  const mesAntStr=mesAnteriorDate.toISOString().slice(0,7);
+
+  // ── 1. KPIs principais
+  const totalAtivos=ativos.length;
+  const canceladosMes=clients.filter(c=>{
+    if(c.status!=='inativo'||!c.updated_at)return false;
+    const d=new Date(c.updated_at);
+    return d.getMonth()===refMes&&d.getFullYear()===refAno;
+  }).length;
+
+  // NPS: score = promotores% - detratores% (escala -100 a +100)
+  // Coleta NPS do mês de referência (usa nps_historico se existir, ou nps_atual como fallback)
+  const npsDoMes=ativos.map(c=>{
+    const cs=c.cd_cs||{};
+    // Tenta achar registro NPS do mês de referência
+    const hist=(cs.nps_historico||[]).find(h=>h.mes===refStr);
+    if(hist)return hist.nota;
+    // Fallback: se o mês de ref é o atual, usa nps_atual
+    if(refStr===hoje.toISOString().slice(0,7))return cs.nps_atual!=null?Number(cs.nps_atual):null;
+    return null;
+  }).filter(n=>n!=null);
+  const promotores=npsDoMes.filter(n=>n>=9).length;
+  const detratores=npsDoMes.filter(n=>n<=6).length;
+  const npsScore=npsDoMes.length?Math.round((promotores-detratores)/npsDoMes.length*100):null;
+  const notaMedia=npsDoMes.length?Math.round(npsDoMes.reduce((s,n)=>s+n,0)/npsDoMes.length*10)/10:null;
+
+  // NPS mês anterior para comparativo
+  const npsMesAnt=ativos.map(c=>{
+    const cs=c.cd_cs||{};
+    const hist=(cs.nps_historico||[]).find(h=>h.mes===mesAntStr);
+    return hist?hist.nota:null;
+  }).filter(n=>n!=null);
+  const promAnt=npsMesAnt.filter(n=>n>=9).length;
+  const detAnt=npsMesAnt.filter(n=>n<=6).length;
+  const npsAnt=npsMesAnt.length?Math.round((promAnt-detAnt)/npsMesAnt.length*100):null;
+  const npsVariacao=npsScore!=null&&npsAnt!=null?npsScore-npsAnt:null;
+
+  // Taxa de retenção (clientes que não cancelaram neste mês / total início do mês)
+  const retencao=totalAtivos>0?Math.round(((totalAtivos)/(totalAtivos+canceladosMes))*100):100;
+  const retencaoAnt=null; // sem histórico suficiente para calcular mês anterior
+
+  // ── 2. Saúde da carteira
+  const saudaveis=ativos.filter(c=>c.churn_risk==='baixo').length;
+  const atencao=ativos.filter(c=>c.churn_risk==='medio').length;
+  const risco=ativos.filter(c=>c.churn_risk==='alto').length;
+  const semFarol=ativos.filter(c=>!c.churn_risk).length;
+
+  // Gráfico de rosca SVG
+  function rosca(vals,cors,cx,cy,r,esp){
+    const total=vals.reduce((s,v)=>s+v,0)||1;
+    let start=-Math.PI/2;
+    const paths=[];
+    vals.forEach((v,i)=>{
+      if(!v)return;
+      const ang=(v/total)*2*Math.PI*(1-esp*(vals.filter(x=>x>0).length)/total);
+      const x1=cx+r*Math.cos(start),y1=cy+r*Math.sin(start);
+      start+=ang;
+      const x2=cx+r*Math.cos(start),y2=cy+r*Math.sin(start);
+      const laf=ang>Math.PI?1:0;
+      paths.push(`<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${laf},1 ${x2},${y2} Z" fill="${cors[i]}" opacity=".85"/>`);
+      start+=esp/total*2*Math.PI;
+    });
+    return paths.join('');
+  }
+  const rVals=[saudaveis,atencao,risco,semFarol];
+  const rCors=['#16a34a','#d97706','#dc2626','#9ca3af'];
+  const svgRosca=`<svg viewBox="0 0 120 120" width="140" height="140">
+    ${rosca(rVals,rCors,60,60,54,0.04)}
+    <circle cx="60" cy="60" r="34" fill="var(--surface)"/>
+    <text x="60" y="55" text-anchor="middle" font-size="20" font-weight="800" fill="var(--text)">${totalAtivos}</text>
+    <text x="60" y="70" text-anchor="middle" font-size="9" fill="var(--text-3)">clientes</text>
+  </svg>`;
+
+  // ── 3. Evolução da satisfação (últimos 6 meses)
+  const ultMeses=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(refAno,refMes-i,1);
+    const ms=d.toISOString().slice(0,7);
+    const notas=ativos.map(c=>{
+      const cs=c.cd_cs||{};
+      const hist=(cs.nps_historico||[]).find(h=>h.mes===ms);
+      if(hist)return hist.nota;
+      if(ms===hoje.toISOString().slice(0,7))return cs.nps_atual!=null?Number(cs.nps_atual):null;
+      return null;
+    }).filter(n=>n!=null);
+    const media=notas.length?Math.round(notas.reduce((s,n)=>s+n,0)/notas.length*10)/10:null;
+    ultMeses.push({mes:ms,label:d.toLocaleDateString('pt-BR',{month:'short'}).replace('.',''),media,qtd:notas.length});
+  }
+  const maxNota=10;
+  const svgW=260,svgH=80;
+  const pts=ultMeses.map((m,i)=>m.media!=null?[i/(ultMeses.length-1)*(svgW-20)+10,(1-m.media/maxNota)*(svgH-20)+10]:null);
+  const linePoints=pts.filter(Boolean);
+  const polyline=linePoints.length>=2?`<polyline points="${linePoints.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:'' ;
+  const dots=pts.map((p,i)=>p?`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#e11d48"/><title>${ultMeses[i].label}: ${ultMeses[i].media}</title>`:'' ).join('');
+  const svgEvolucao=`<svg viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" style="overflow:visible">
+    <line x1="10" y1="${svgH-10}" x2="${svgW-10}" y2="${svgH-10}" stroke="var(--border)" stroke-width="1"/>
+    ${[0,5,10].map(v=>`<line x1="10" y1="${(1-v/10)*(svgH-20)+10}" x2="${svgW-10}" y2="${(1-v/10)*(svgH-20)+10}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="3"/><text x="4" y="${(1-v/10)*(svgH-20)+14}" font-size="7" fill="var(--text-3)">${v}</text>`).join('')}
+    ${polyline}${dots}
+    ${ultMeses.map((m,i)=>`<text x="${i/(ultMeses.length-1)*(svgW-20)+10}" y="${svgH}" text-anchor="middle" font-size="8" fill="var(--text-3)">${m.label}</text>`).join('')}
+  </svg>`;
+
+  // ── 4. Pendências de acompanhamento
+  const hoje_str=hoje.toISOString().slice(0,10);
+  // Contratos vencendo em 30 dias
+  const contratosVenc=ativos.filter(c=>{
+    if(!c.start_date||!c.contract_months)return false;
+    const exp=new Date(c.start_date+'T00:00:00');exp.setMonth(exp.getMonth()+Number(c.contract_months));
+    const diff=Math.round((exp-hoje)/(864e5));
+    return diff>=0&&diff<=30;
+  });
+  // Feedbacks pendentes desta semana
+  const seg=new Date(hoje);const dow=seg.getDay();seg.setDate(seg.getDate()-(dow===0?6:dow-1));
+  const feedPendentes=ativos.filter(c=>_getFeedbackStatus(c,hoje)!=='concluido');
+  // Reuniões pendentes deste mês
+  const reunPendentes=ativos.filter(c=>_getReuniaoStatus(c,hoje)!=='concluido');
+  // NPS pendente do mês (sem nps_atual e sem registro nps_historico do mês)
+  const npsPendentes=ativos.filter(c=>{
+    const cs=c.cd_cs||{};
+    const hist=(cs.nps_historico||[]).find(h=>h.mes===refStr);
+    return !hist&&cs.nps_atual==null;
+  });
+
+  function pendItem(icon,label,lista,tabKey,filtroKey){
+    const n=lista.length;
+    const nomes=lista.slice(0,5).map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-radius:8px;font-size:12px;color:var(--text-2)">${c.company_name}</div>`).join('');
+    const mais=lista.length>5?`<div style="font-size:11px;color:var(--text-3);padding:4px 12px">+${lista.length-5} clientes</div>`:'';
+    return`<details style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden">
+      <summary style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;list-style:none;user-select:none">
+        <div style="width:36px;height:36px;border-radius:8px;background:${n>0?'rgba(220,38,38,.08)':'rgba(22,163,74,.08)'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${n>0?'#dc2626':'#16a34a'}" stroke-width="2">${icon}</svg>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${label}</div>
+        </div>
+        <span style="font-size:16px;font-weight:800;color:${n>0?'#dc2626':'#16a34a'};min-width:28px;text-align:right">${n}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" style="transition:.2s"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      ${n>0?`<div style="padding:0 12px 12px;display:flex;flex-direction:column;gap:4px">${nomes}${mais}</div>`:`<div style="padding:0 16px 14px;font-size:12px;color:#16a34a;font-weight:600">✓ Tudo em dia</div>`}
+    </details>`;
+  }
+
+  // ── 5. Onboarding/Briefing compacto
+  const semOnb=ativos.filter(c=>!c.cd_cs?.onboarding_feito);
+  const semBrief=ativos.filter(c=>!c.cd_cs?.briefing_feito);
+  const tudo_onb=semOnb.length===0&&semBrief.length===0;
+
+  // Meses para o filtro
+  const mesesLabels=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const anoAtual=hoje.getFullYear();
+  const opcoesMes=[...Array(12)].map((_,i)=>`<option value="${i}" ${i===refMes&&refAno===anoAtual?'selected':''}>${mesesLabels[i]}</option>`).join('');
+
+  return`
+  <!-- Filtro topo -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-size:18px;font-weight:800;color:var(--text)">Visão Geral</div>
+      <div style="font-size:13px;color:var(--text-3)">${mesesLabels[refMes]} ${refAno}</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="inp" style="font-size:12px;padding:6px 10px" onchange="window._csVgMes=Number(this.value);document.getElementById('cs-tab-visaogeral').innerHTML=renderCsVisaoGeral(clients.filter(c=>c.status==='ativo'&&(currentSystemUser?.level==='cs'?c.cs_id===currentSystemUser.id:true)),((h=new Date())=>{h.setHours(0,0,0,0);return h;})())">
+        ${opcoesMes}
+      </select>
+      <select class="inp" style="font-size:12px;padding:6px 10px" onchange="window._csVgAno=Number(this.value);document.getElementById('cs-tab-visaogeral').innerHTML=renderCsVisaoGeral(clients.filter(c=>c.status==='ativo'&&(currentSystemUser?.level==='cs'?c.cs_id===currentSystemUser.id:true)),((h=new Date())=>{h.setHours(0,0,0,0);return h;})())">
+        ${[anoAtual-1,anoAtual,anoAtual+1].map(a=>`<option value="${a}" ${a===refAno?'selected':''}>${a}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+
+  <!-- KPIs principais (4 cards) -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px 18px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(1,97,255,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0161ff" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <span style="font-size:12px;color:var(--text-3);font-weight:500">Clientes ativos</span>
+      </div>
+      <div style="font-size:32px;font-weight:800;color:var(--text)">${totalAtivos}</div>
+    </div>
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px 18px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(225,29,72,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <span style="font-size:12px;color:var(--text-3);font-weight:500">NPS geral</span>
+      </div>
+      <div style="font-size:32px;font-weight:800;color:${npsScore!=null?(npsScore>=50?'#16a34a':npsScore>=0?'#d97706':'#dc2626'):'var(--text-3)'}">
+        ${npsScore!=null?(npsScore>0?'+':'')+npsScore:'—'}
+      </div>
+      ${npsVariacao!=null?`<div style="font-size:11px;color:${npsVariacao>=0?'#16a34a':'#dc2626'};margin-top:4px">${npsVariacao>=0?'▲':'▼'} ${Math.abs(npsVariacao)} vs mês ant.</div>`:''}
+      ${npsDoMes.length?`<div style="font-size:10px;color:var(--text-3);margin-top:2px">${npsDoMes.length} avaliações</div>`:`<div style="font-size:10px;color:var(--text-3);margin-top:4px">Sem dados no período</div>`}
+    </div>
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px 18px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(22,163,74,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <span style="font-size:12px;color:var(--text-3);font-weight:500">Retenção mensal</span>
+      </div>
+      <div style="font-size:32px;font-weight:800;color:${retencao>=90?'#16a34a':retencao>=75?'#d97706':'#dc2626'}">${retencao}%</div>
+    </div>
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px 18px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(220,38,38,.1);display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+        <span style="font-size:12px;color:var(--text-3);font-weight:500">Cancelamentos</span>
+      </div>
+      <div style="font-size:32px;font-weight:800;color:${canceladosMes>0?'#dc2626':'#16a34a'}">${canceladosMes}</div>
+      <div style="font-size:10px;color:var(--text-3);margin-top:4px">no mês</div>
+    </div>
+  </div>
+
+  <!-- Saúde da carteira + Evolução da satisfação -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <!-- Saúde da carteira -->
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:22px">
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:18px">Saúde da Carteira</div>
+      <div style="display:flex;align-items:center;gap:24px">
+        ${svgRosca}
+        <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+          ${[[saudaveis,'#16a34a','Saudáveis','baixo'],[atencao,'#d97706','Em atenção','medio'],[risco,'#dc2626','Em risco','alto'],[semFarol,'#9ca3af','Sem farol',null]].map(([n,cor,label,filtro])=>`
+            <div style="display:flex;align-items:center;gap:10px;cursor:${filtro?'pointer':'default'}"
+              ${filtro?`onclick="csSetTab('farol',document.querySelector('.client-tab[onclick*=farol]'));csFilterBy('${filtro==='baixo'?'saudaveis':filtro==='medio'?'atencao':filtro==='alto'?'emRisco':null}')"`:''}
+            >
+              <div style="width:10px;height:10px;border-radius:50%;background:${cor};flex-shrink:0"></div>
+              <div style="font-size:13px;color:var(--text-2);flex:1">${label}</div>
+              <div style="font-size:14px;font-weight:700;color:${cor}">${n}</div>
+              <div style="font-size:12px;color:var(--text-3)">${totalAtivos?Math.round(n/totalAtivos*100):0}%</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <!-- Evolução da satisfação -->
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:22px">
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">Evolução da Satisfação</div>
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px">
+        <span style="font-size:28px;font-weight:800;color:${notaMedia!=null?(notaMedia>=8?'#16a34a':notaMedia>=6?'#d97706':'#dc2626'):'var(--text-3)'}">
+          ${notaMedia!=null?notaMedia:'—'}
+        </span>
+        <span style="font-size:12px;color:var(--text-3)">${notaMedia!=null?'/ 10 · nota média':''}</span>
+        ${npsDoMes.length?`<span style="font-size:11px;color:var(--text-3);margin-left:auto">${npsDoMes.length} de ${totalAtivos} avaliados (${totalAtivos?Math.round(npsDoMes.length/totalAtivos*100):0}%)</span>`:''}
+      </div>
+      ${ultMeses.some(m=>m.media!=null)?svgEvolucao:`<div style="text-align:center;padding:20px;font-size:12px;color:var(--text-3)">Sem histórico de NPS para exibir o gráfico.<br>Registre avaliações nas fichas dos clientes.</div>`}
+      <div style="display:flex;justify-content:space-between;margin-top:12px">
+        ${ultMeses.map(m=>`<div style="text-align:center;min-width:30px">
+          <div style="font-size:10px;color:var(--text-3)">${m.label}</div>
+          <div style="font-size:11px;font-weight:700;color:${m.media!=null?(m.media>=8?'#16a34a':m.media>=6?'#d97706':'#dc2626'):'var(--text-3)'}">${m.media??'—'}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- Pendências de Acompanhamento -->
+  <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px">
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px">Pendências de Acompanhamento</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${pendItem('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>','Contratos vencendo em 30 dias',contratosVenc,'carteira',null)}
+      ${pendItem('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>','Feedbacks semanais pendentes',feedPendentes,'carteira',null)}
+      ${pendItem('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>','Reuniões mensais pendentes',reunPendentes,'carteira',null)}
+      ${pendItem('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>','Avaliações de NPS pendentes',npsPendentes,'carteira',null)}
+    </div>
+  </div>
+
+  <!-- Acompanhamento operacional compacto -->
+  <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:18px 22px">
+    ${tudo_onb
+      ? `<div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:8px;background:rgba(22,163,74,.1);display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#16a34a">Onboarding e briefing em dia</div>
+            <div style="font-size:12px;color:var(--text-3)">${totalAtivos} clientes com todas as etapas iniciais concluídas</div>
+          </div>
+        </div>`
+      : `<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">Acompanhamento Operacional</div>
+         <div style="display:flex;gap:16px;flex-wrap:wrap">
+           ${semOnb.length?`<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:10px;cursor:pointer" onclick="csSetTab('carteira',document.querySelector('.client-tab[onclick*=carteira]'));csFilterBy('semOnboarding')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+             <div><div style="font-size:13px;font-weight:700;color:#dc2626">${semOnb.length}</div><div style="font-size:11px;color:var(--text-3)">Sem onboarding</div></div>
+           </div>`:'' }
+           ${semBrief.length?`<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(217,119,6,.06);border:1px solid rgba(217,119,6,.2);border-radius:10px;cursor:pointer" onclick="csSetTab('carteira',document.querySelector('.client-tab[onclick*=carteira]'));csFilterBy('semBriefing')">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+             <div><div style="font-size:13px;font-weight:700;color:#d97706">${semBrief.length}</div><div style="font-size:11px;color:var(--text-3)">Sem briefing</div></div>
+           </div>`:'' }
+         </div>`
+    }
+  </div>`;
 }
 
 function renderCsFarol(ativos,hoje){
@@ -8565,18 +8971,21 @@ function renderCsCarteira(ativos,hoje,filterKey){
 
   const cards=ativos.map(c=>{
     const cs=c.cd_cs||{};
-    const diasFeed=cs.ultimo_feedback_semanal?Math.round((hoje-new Date(cs.ultimo_feedback_semanal+'T00:00:00'))/(864e5)):null;
-    const diasReu=cs.ultima_reuniao_mensal?Math.round((hoje-new Date(cs.ultima_reuniao_mensal+'T00:00:00'))/(864e5)):null;
-    const feedOk=diasFeed!==null&&diasFeed<=9;
-    const reunOk=diasReu!==null&&diasReu<=35;
+    const feedStatus=_getFeedbackStatus(c,hoje);
+    const reuStatus=_getReuniaoStatus(c,hoje);
     const nps=cs.nps_atual;
     const npsColor=nps!=null?(nps>=9?'#16a34a':nps>=7?'#d97706':'#dc2626'):'#6b7280';
     const gestor=c.manager||c.manager_name||'—';
     const ctrato=_csContratoInfo(c,hoje);
     const bordaCor=ctrato&&ctrato.restantes<=30?ctrato.cor:c.churn_risk==='alto'?'#dc2626':c.churn_risk==='medio'?'#d97706':'var(--border)';
 
-    // badges onb/brief/feed/reu — estilo da imagem
+    // badges onb/brief com cor, feed/reu com novo status
     const badge=(icon,label,ok,na)=>`<span style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${na?'rgba(107,114,128,.1)':ok?'rgba(22,163,74,.1)':'rgba(220,38,38,.1)'};color:${na?'#6b7280':ok?'#16a34a':'#dc2626'}">${icon} ${label} ${na?'—':ok?'✓':'—'}</span>`;
+    const badgeStatus=(icon,label,status)=>{
+      const cor=status==='concluido'?'#16a34a':status==='aguardando'?'#d97706':'#6b7280';
+      const lbl=status==='concluido'?'✓':status==='aguardando'?'…':'—';
+      return`<span style="font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600;background:${cor}18;color:${cor}">${icon} ${label} ${lbl}</span>`;
+    };
 
     return`<div class="cs-carteira-card" data-nome="${c.company_name.toLowerCase()}" onclick="abrirFichaCs('${c.id}')"
       style="background:var(--surface);border:1.5px solid ${bordaCor};border-radius:12px;padding:16px 20px;cursor:pointer;transition:box-shadow .15s,border-color .15s"
@@ -8608,8 +9017,8 @@ function renderCsCarteira(ativos,hoje,filterKey){
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${badge('🚀','Onb',cs.onboarding_feito,false)}
           ${badge('📋','Brief',cs.briefing_feito,false)}
-          ${badge('💬','Feed',feedOk,diasFeed===null)}
-          ${badge('📅','Reu',reunOk,diasReu===null)}
+          ${badgeStatus('💬','Feed',feedStatus)}
+          ${badgeStatus('📅','Reu',reuStatus)}
         </div>
         <!-- NPS -->
         <div style="flex:0 0 60px;text-align:center">
@@ -8823,22 +9232,44 @@ function renderFichaCs(clientId,abaAtiva){
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               <span style="font-size:15px;font-weight:700;color:var(--text)">Últimos registros</span>
             </div>
-            <div style="display:flex;flex-direction:column;gap:14px">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <div style="display:flex;align-items:center;gap:10px">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <span style="font-size:13px;color:var(--text-2)">Último feedback semanal</span>
-                </div>
-                <span style="font-size:13px;font-weight:600;color:${cs.ultimo_feedback_semanal?'var(--text)':'var(--text-3)'}">${fmtDt(cs.ultimo_feedback_semanal)}</span>
-              </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <!-- Feedback semanal com status -->
+              ${(()=>{
+                const stFeed=_getFeedbackStatus(c,hoje);
+                const feedCor=stFeed==='concluido'?'#16a34a':stFeed==='aguardando'?'#d97706':'#6b7280';
+                const feedLabel=stFeed==='concluido'?'Concluído':stFeed==='aguardando'?'Aguardando resposta':'Pendente';
+                const prxFeed=stFeed==='pendente'?`<button onclick="csAvancarFeedback('${c.id}','aguardando')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #d97706;background:transparent;color:#d97706;cursor:pointer">Solicitar →</button>`:
+                              stFeed==='aguardando'?`<button onclick="csAvancarFeedback('${c.id}','concluido')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #16a34a;background:transparent;color:#16a34a;cursor:pointer">Registrar ✓</button>`:'';
+                return`<div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <span style="font-size:12px;font-weight:600;color:var(--text-2)">Feedback semanal</span>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="font-size:11px;font-weight:700;color:${feedCor};background:${feedCor}15;padding:2px 8px;border-radius:5px">${feedLabel}</span>
+                      ${prxFeed}
+                    </div>
+                  </div>
+                  <div style="font-size:12px;color:var(--text-3)">Último: ${fmtDt(cs.ultimo_feedback_semanal)}</div>
+                </div>`;
+              })()}
               <div style="height:1px;background:var(--border)"></div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <div style="display:flex;align-items:center;gap:10px">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <span style="font-size:13px;color:var(--text-2)">Última reunião mensal</span>
-                </div>
-                <span style="font-size:13px;font-weight:600;color:${cs.ultima_reuniao_mensal?'var(--text)':'var(--text-3)'}">${fmtDt(cs.ultima_reuniao_mensal)}</span>
-              </div>
+              <!-- Reunião mensal com status -->
+              ${(()=>{
+                const stReu=_getReuniaoStatus(c,hoje);
+                const reuCor=stReu==='concluido'?'#16a34a':stReu==='aguardando'?'#d97706':'#6b7280';
+                const reuLabel=stReu==='concluido'?'Concluída':stReu==='aguardando'?'Aguardando confirmação':'Pendente';
+                const prxReu=stReu==='pendente'?`<button onclick="csAvancarReuniao('${c.id}','aguardando')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #d97706;background:transparent;color:#d97706;cursor:pointer">Agendar →</button>`:
+                              stReu==='aguardando'?`<button onclick="csAvancarReuniao('${c.id}','concluido')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #16a34a;background:transparent;color:#16a34a;cursor:pointer">Registrar ✓</button>`:'';
+                return`<div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <span style="font-size:12px;font-weight:600;color:var(--text-2)">Reunião mensal</span>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="font-size:11px;font-weight:700;color:${reuCor};background:${reuCor}15;padding:2px 8px;border-radius:5px">${reuLabel}</span>
+                      ${prxReu}
+                    </div>
+                  </div>
+                  <div style="font-size:12px;color:var(--text-3)">Última: ${fmtDt(cs.ultima_reuniao_mensal)}</div>
+                </div>`;
+              })()}
               <div style="height:1px;background:var(--border)"></div>
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <div style="display:flex;align-items:center;gap:10px">
@@ -9344,8 +9775,13 @@ function saveCsClientModal(clientId){
   saveAll();
   closeModal('inline-modal');
   showToast('Registrado com sucesso!');
-  renderCs();
-  renderDashboardCsPanel();
+  // Se a ficha individual está aberta, apenas atualiza ela (evita tela em branco)
+  if(window._csFichaClienteId){
+    renderFichaCs(window._csFichaClienteId,'info');
+  } else {
+    renderCs();
+  }
+  renderDashboardCsPanel&&renderDashboardCsPanel();
 }
 
 function openCsLogModal(){
